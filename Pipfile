@@ -10,8 +10,3 @@ pypubsub = "==4.0.3"
 requests = ">=2.24.0"
 pubsub = "==0.1.2"
 ipaddress = "==1.0.23"
-
-[dev-packages]
-
-[requires]
-python_version = "3.9"
