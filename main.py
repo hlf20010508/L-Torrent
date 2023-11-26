@@ -13,17 +13,12 @@ import os
 import message
 
 
-class Run(object):
+class Client(object):
     percentage_completed = -1
     last_log_line = ""
 
-    def __init__(self):
-        try:
-            torrent_file = sys.argv[1]
-        except IndexError:
-            logging.error("No torrent file provided!")
-            sys.exit(0)
-        self.torrent = torrent.Torrent().load_from_path(torrent_file)
+    def __init__(self, magnet_link):
+        self.torrent = torrent.Torrent().load_from_magnet(magnet_link)
         self.tracker = tracker.Tracker(self.torrent)
 
         self.pieces_manager = pieces_manager.PiecesManager(self.torrent)
@@ -86,10 +81,12 @@ class Run(object):
         number_of_peers = self.peers_manager.unchoked_peers_count()
         percentage_completed = float((float(new_progression) / self.torrent.total_length) * 100)
 
-        current_log_line = "Connected peers: {} - {}% completed | {}/{} pieces".format(number_of_peers,
-                                                                                         round(percentage_completed, 2),
-                                                                                         self.pieces_manager.complete_pieces,
-                                                                                         self.pieces_manager.number_of_pieces)
+        current_log_line = "Connected peers: {} - {}% completed | {}/{} pieces".format(
+            number_of_peers,
+            round(percentage_completed, 2),
+            self.pieces_manager.complete_pieces,
+            self.pieces_manager.number_of_pieces
+        )
         if current_log_line != self.last_log_line:
             print(current_log_line)
 
@@ -104,5 +101,7 @@ class Run(object):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
-    run = Run()
+    magnet_link = "magnet:?xt=urn:btih:caef19ccea97266c98f7f04347b2d4d0ff2a6549"
+    
+    run = Client(magnet_link)
     run.start()

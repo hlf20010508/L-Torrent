@@ -5,8 +5,8 @@ __author__ = 'alexisgallepe'
 import hashlib
 import time
 from bcoding import bencode, bdecode
-import logging
 import os
+import requests
 
 
 class Torrent(object):
@@ -21,10 +21,7 @@ class Torrent(object):
         self.file_names = []
         self.number_of_pieces: int = 0
 
-    def load_from_path(self, path):
-        with open(path, 'rb') as file:
-            contents = bdecode(file)
-
+    def load(self, contents):
         self.torrent_file = contents
         self.piece_length = self.torrent_file['info']['piece length']
         self.pieces = self.torrent_file['info']['pieces']
@@ -34,26 +31,31 @@ class Torrent(object):
         self.announce_list = self.get_trakers()
         self.init_files()
         self.number_of_pieces = math.ceil(self.total_length / self.piece_length)
-        logging.debug(self.announce_list)
-        logging.debug(self.file_names)
 
         assert(self.total_length > 0)
         assert(len(self.file_names) > 0)
 
         return self
 
+    def load_from_magnet(self, magnet_link):
+        server_url = "https://magnet2torrent.com/upload/"
+        response = requests.post(server_url, data={'magnet': magnet_link})
+        print(response.status_code)
+        print(response.headers)
+        contents = bdecode(response.content)
+        return self.load(contents)
+    
+    def load_from_path(self, path):
+        with open(path, 'rb') as file:
+            contents = bdecode(file)
+        return self.load(contents)
+
     def init_files(self):
         root = self.torrent_file['info']['name']
 
         if 'files' in self.torrent_file['info']:
-            if not os.path.exists(root):
-                os.mkdir(root, 0o0766 )
-
             for file in self.torrent_file['info']['files']:
                 path_file = os.path.join(root, *file["path"])
-
-                if not os.path.exists(os.path.dirname(path_file)):
-                    os.makedirs(os.path.dirname(path_file))
 
                 self.file_names.append({"path": path_file , "length": file["length"]})
                 self.total_length += file["length"]
