@@ -17,9 +17,9 @@ class Client(object):
     percentage_completed = -1
     last_log_line = ""
 
-    def __init__(self, magnet_link, port):
+    def __init__(self, magnet_link, port, timeout=0.5):
         self.torrent = torrent.Torrent().load_from_magnet(magnet_link)
-        self.tracker = tracker.Tracker(self.torrent, port)
+        self.tracker = tracker.Tracker(self.torrent, port, timeout=timeout)
 
         self.pieces_manager = pieces_manager.PiecesManager(self.torrent)
         self.peers_manager = peers_manager.PeersManager(self.torrent, self.pieces_manager)
@@ -103,5 +103,6 @@ if __name__ == '__main__':
 
     magnet_link = "magnet:?xt=urn:btih:ea0d3cc01490ad63405f5b1466e34e3c96b56d19"
     port = 8080
-    run = Client(magnet_link, port)
+    timeout = 0.5
+    run = Client(magnet_link, port, timeout)
     run.start()

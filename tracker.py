@@ -12,9 +12,6 @@ from bcoding import bdecode
 import socket
 from urllib.parse import urlparse
 
-MAX_PEERS_TRY_CONNECT = 30
-MAX_PEERS_CONNECTED = 8
-
 
 class SockAddr:
     def __init__(self, ip, port, allowed=True):
@@ -27,8 +24,9 @@ class SockAddr:
 
 
 class Tracker(object):
-    def __init__(self, torrent, port):
+    def __init__(self, torrent, port, timeout):
         self.port = port
+        self.timeout = timeout
         self.torrent = torrent
         self.threads_list = []
         self.connected_peers = {}
@@ -36,16 +34,13 @@ class Tracker(object):
 
     def get_peers_from_trackers(self):
         for i, tracker_url in enumerate(self.torrent.announce_list):
-            if len(self.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
-                break
-
             if str.startswith(tracker_url, "http"):
                 try:
                     self.http_scraper(self.torrent, tracker_url)
                 except Exception as e:
                     logging.error("HTTP scraping failed: %s " % e.__str__())
 
-            elif str.startswith(tracker_url, "udp"):
+            if str.startswith(tracker_url, "udp"):
                 try:
                     self.udp_scrapper(tracker_url)
                 except Exception as e:
@@ -62,14 +57,11 @@ class Tracker(object):
         logging.info("Trying to connect to %d peer(s)" % len(self.dict_sock_addr))
 
         for _, sock_addr in self.dict_sock_addr.items():
-            if len(self.connected_peers) >= MAX_PEERS_CONNECTED:
-                break
-
             new_peer = peer.Peer(int(self.torrent.number_of_pieces), sock_addr.ip, sock_addr.port)
-            if not new_peer.connect():
+            if not new_peer.connect(timeout=self.timeout):
                 continue
 
-            print('Connected to %d/%d peers' % (len(self.connected_peers), MAX_PEERS_CONNECTED))
+            print('Connected to %d peers' % len(self.connected_peers))
 
             self.connected_peers[new_peer.__hash__()] = new_peer
 
@@ -85,7 +77,7 @@ class Tracker(object):
         }
 
         try:
-            answer_tracker = requests.get(tracker, params=params, verify=False, timeout=2)
+            answer_tracker = requests.get(tracker, params=params, verify=False, timeout=self.timeout)
             list_peers = bdecode(answer_tracker.content)
             offset=0
             if not type(list_peers['peers']) == list:
@@ -117,11 +109,16 @@ class Tracker(object):
     def udp_scrapper(self, announce):
         torrent = self.torrent
         parsed = urlparse(announce)
+        try:
+            ip, port = socket.gethostbyname(parsed.hostname), parsed.port
+        except:
+            hostname = ':'.join(parsed.netloc.split(':')[:-1]).lstrip('[').rstrip(']')
+            port = int(parsed.netloc.split(':')[-1])
+            ip = socket.gethostbyname(hostname)
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.settimeout(4)
-        ip, port = socket.gethostbyname(parsed.hostname), parsed.port
+        sock.settimeout(self.timeout)
 
         if ipaddress.ip_address(ip).is_private:
             return
@@ -255,13 +252,6 @@ TRACKERS_LIST = [
     'udp://52.58.128.163:6969/announce',
     'udp://6.pocketnet.app:6969/announce',
     'udp://91.216.110.52:451/announce',
-    'udp://[2001:1b10:1000:8101:0:242:ac11:2]:6969/announce',
-    'udp://[2001:470:1:189:0:1:2:3]:6969/announce',
-    'udp://[2a00:b700:1::3:1dc]:8080/announce',
-    'udp://[2a01:4f8:c012:8025::1]:8080/announce',
-    'udp://[2a03:7220:8083:cd00::1]:451/announce',
-    'udp://[2a04:ac00:1:3dd8::1:2710]:2710/announce',
-    'udp://[2a0f:e586:f:f::81]:6969/announce',
     'udp://aarsen.me:6969/announce',
     'udp://acxx.de:6969/announce',
     'udp://aegir.sexy:6969/announce',

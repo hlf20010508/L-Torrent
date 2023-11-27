@@ -131,7 +131,7 @@ class UdpTrackerAnnounce(Message):
         ip = pack('>I', 0)
         key = pack('>I', 0)
         num_want = pack('>i', -1)
-        port = pack('>h', port)
+        port = pack('>h', self.port)
 
         msg = (conn_id + action + trans_id + self.info_hash + self.peer_id + downloaded +
                left + uploaded + event + ip + key + num_want + port)

@@ -32,9 +32,9 @@ class Peer(object):
     def __hash__(self):
         return "%s:%d" % (self.ip, self.port)
 
-    def connect(self):
+    def connect(self, timeout=0.5):
         try:
-            self.socket = socket.create_connection((self.ip, self.port), timeout=2)
+            self.socket = socket.create_connection((self.ip, self.port), timeout=timeout)
             self.socket.setblocking(False)
             logging.debug("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
             self.healthy = True
