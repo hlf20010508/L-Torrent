@@ -8,6 +8,8 @@ from bcoding import bencode, bdecode
 import os
 import requests
 
+from tracker import TRACKERS_LIST
+
 
 class Torrent(object):
     def __init__(self):
@@ -17,7 +19,7 @@ class Torrent(object):
         self.pieces: int = 0
         self.info_hash: str = ''
         self.peer_id: str = ''
-        self.announce_list = ''
+        self.announce_list = []
         self.file_names = []
         self.number_of_pieces: int = 0
 
@@ -39,9 +41,8 @@ class Torrent(object):
 
     def load_from_magnet(self, magnet_link):
         server_url = "https://magnet2torrent.com/upload/"
-        response = requests.post(server_url, data={'magnet': magnet_link})
-        print(response.status_code)
-        print(response.headers)
+        headers={'User-Agent': 'Mozilla/5.0 (Platform; Security; OS-or-CPU; Localization; rv:1.4) Gecko/20030624 Netscape/7.1 (ax)'}
+        response = requests.post(server_url, headers=headers, data={'magnet': magnet_link})
         contents = bdecode(response.content)
         return self.load(contents)
     
@@ -51,24 +52,37 @@ class Torrent(object):
         return self.load(contents)
 
     def init_files(self):
+        # 获取种子中根目录的路径
         root = self.torrent_file['info']['name']
-
+        # 如果有files字段，则表明种子中包含多个文件
         if 'files' in self.torrent_file['info']:
+            if not os.path.exists(root):
+                # 创建根目录，并定义其权限为没有特殊权限设定（0），所有者读写执行（4+2+1），用户和访客读写（4+2）
+                os.mkdir(root, 0o0766 )
+            # 遍历根目录下的所有文件路径
             for file in self.torrent_file['info']['files']:
+                # 将文件路径的各个部分同根目录拼接起来
+                # file["path"]的结构形如["music", "song.mp3"]
                 path_file = os.path.join(root, *file["path"])
-
+                # 检查该文件的父路径是否存在，若不存在则创建该父路径
+                if not os.path.exists(os.path.dirname(path_file)):
+                    os.makedirs(os.path.dirname(path_file))
+                # 存储文件路径，并附上文件大小
                 self.file_names.append({"path": path_file , "length": file["length"]})
+                # 更新种子的总大小
                 self.total_length += file["length"]
-
+        # 若没有files字段，说明种子中只有一个文件
         else:
             self.file_names.append({"path": root , "length": self.torrent_file['info']['length']})
             self.total_length = self.torrent_file['info']['length']
 
     def get_trakers(self):
+        trackers_list = TRACKERS_LIST
         if 'announce-list' in self.torrent_file:
-            return self.torrent_file['announce-list']
-        else:
-            return [[self.torrent_file['announce']]]
+            trackers_list.extend(self.torrent_file['announce-list'])
+        elif "announce" in self.torrent_file:
+            return trackers_list.append(self.torrent_file['announce'])
+        return trackers_list
 
     def generate_peer_id(self):
         seed = str(time.time())

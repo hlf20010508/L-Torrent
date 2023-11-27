@@ -101,7 +101,6 @@ class Client(object):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
-    magnet_link = "magnet:?xt=urn:btih:caef19ccea97266c98f7f04347b2d4d0ff2a6549"
-    
+    magnet_link = "magnet:?xt=urn:btih:ea0d3cc01490ad63405f5b1466e34e3c96b56d19"
     run = Client(magnet_link)
     run.start()
