@@ -27,7 +27,8 @@ class SockAddr:
 
 
 class Tracker(object):
-    def __init__(self, torrent):
+    def __init__(self, torrent, port):
+        self.port = port
         self.torrent = torrent
         self.threads_list = []
         self.connected_peers = {}
@@ -78,7 +79,7 @@ class Tracker(object):
             'peer_id': torrent.peer_id,
             'uploaded': 0,
             'downloaded': 0,
-            'port': 8080,
+            'port': self.port,
             'left': torrent.total_length,
             'event': 'started'
         }
@@ -135,7 +136,7 @@ class Tracker(object):
         tracker_connection_output.from_bytes(response)
 
         tracker_announce_input = UdpTrackerAnnounce(torrent.info_hash, tracker_connection_output.conn_id,
-                                                    torrent.peer_id)
+                                                    torrent.peer_id, self.port)
         response = self.send_message((ip, port), sock, tracker_announce_input)
 
         if not response:

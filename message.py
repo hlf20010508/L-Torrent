@@ -110,13 +110,14 @@ class UdpTrackerAnnounce(Message):
         Total length = 64 + 32 + 32 = 128 bytes
     """
 
-    def __init__(self, info_hash, conn_id, peer_id):
+    def __init__(self, info_hash, conn_id, peer_id, port):
         super(UdpTrackerAnnounce, self).__init__()
         self.peer_id = peer_id
         self.conn_id = conn_id
         self.info_hash = info_hash
         self.trans_id = pack('>I', random.randint(0, 100000))
         self.action = pack('>I', 1)
+        self.port = port
 
     def to_bytes(self):
         conn_id = pack('>Q', self.conn_id)
@@ -130,7 +131,7 @@ class UdpTrackerAnnounce(Message):
         ip = pack('>I', 0)
         key = pack('>I', 0)
         num_want = pack('>i', -1)
-        port = pack('>h', 8000)
+        port = pack('>h', port)
 
         msg = (conn_id + action + trans_id + self.info_hash + self.peer_id + downloaded +
                left + uploaded + event + ip + key + num_want + port)
