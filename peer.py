@@ -39,7 +39,7 @@ class Peer(object):
             self.healthy = True
 
         except Exception as e:
-            print("Failed to connect to peer (ip: %s - port: %s - %s)" % (self.ip, self.port, e.__str__()))
+            # print("Failed to connect to peer (ip: %s - port: %s - %s)" % (self.ip, self.port, e.__str__()))
             return False
 
         return True

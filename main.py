@@ -18,18 +18,21 @@ class Client(object):
 
     def __init__(self, magnet_link, port, timeout=0.5):
         self.torrent = torrent.Torrent().load_from_magnet(magnet_link)
-        self.tracker = tracker.Tracker(self.torrent, port, timeout=timeout)
-
+        # self.tracker = tracker.Tracker(self.torrent, port, timeout=timeout)
+        self.peers_pool = peers_manager.PeersPool()
+        self.peers_scraper = peers_manager.PeersScraper(self.torrent, self.peers_pool, port, timeout=timeout)
         self.pieces_manager = pieces_manager.PiecesManager(self.torrent)
-        self.peers_manager = peers_manager.PeersManager(self.torrent, self.pieces_manager)
+        self.peers_manager = peers_manager.PeersManager(self.torrent, self.pieces_manager, self.peers_pool)
 
+        self.peers_scraper.start()
         self.peers_manager.start()
-        print("PeersManager Started")
-        print("PiecesManager Started")
+        # print("PeersManager Started")
+        # print("PiecesManager Started")
+        # self.tracker.find_peers()
 
     def start(self):
-        peers_dict = self.tracker.get_peers_from_trackers()
-        self.peers_manager.add_peers(peers_dict.values())
+        # peers_dict = self.tracker.get_peers_from_trackers()
+        # self.peers_manager.add_peers(peers_dict.values())
 
         while not self.pieces_manager.all_pieces_completed():
             if not self.peers_manager.has_unchoked_peers():
@@ -98,8 +101,8 @@ class Client(object):
 
 
 if __name__ == '__main__':
-    magnet_link = "magnet:?xt=urn:btih:ea0d3cc01490ad63405f5b1466e34e3c96b56d19"
+    magnet_link = "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent"
     port = 8080
-    timeout = 0.5
+    timeout = 2
     run = Client(magnet_link, port, timeout)
     run.start()

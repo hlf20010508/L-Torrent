@@ -122,6 +122,7 @@ class UdpTrackerAnnounce(Message):
         conn_id = pack('>Q', self.conn_id)
         action = self.action
         trans_id = self.trans_id
+        peer_id = pack('>20s', self.peer_id.encode())
         downloaded = pack('>Q', 0)
         left = pack('>Q', 0)
         uploaded = pack('>Q', 0)
@@ -132,7 +133,7 @@ class UdpTrackerAnnounce(Message):
         num_want = pack('>i', -1)
         port = pack('>h', self.port)
 
-        msg = (conn_id + action + trans_id + self.info_hash + self.peer_id + downloaded +
+        msg = (conn_id + action + trans_id + self.info_hash + peer_id + downloaded +
                left + uploaded + event + ip + key + num_want + port)
 
         return msg
