@@ -6,7 +6,6 @@ import select
 from threading import Thread
 from pubsub import pub
 import rarest_piece
-import logging
 import message
 import peer
 import errno
@@ -30,7 +29,7 @@ class PeersManager(Thread):
 
     def peer_requests_piece(self, request=None, peer=None):
         if not request or not peer:
-            logging.error("empty request/peer message")
+            print("empty request/peer message")
 
         piece_index, block_offset, block_length = request.piece_index, request.block_offset, request.block_length
 
@@ -38,7 +37,7 @@ class PeersManager(Thread):
         if block:
             piece = message.Piece(piece_index, block_offset, block_length, block).to_bytes()
             peer.send_to_peer(piece)
-            logging.info("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
+            print("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
 
     def peers_bitfield(self, bitfield=None):
         for i in range(len(self.pieces_by_peer)):
@@ -80,13 +79,15 @@ class PeersManager(Thread):
                     break
 
                 data += buff
+            except socket.timeout:
+                break
             except socket.error as e:
                 err = e.args[0]
                 if err != errno.EAGAIN or err != errno.EWOULDBLOCK:
-                    logging.debug("Wrong errno {}".format(err))
+                    print("Wrong errno {}".format(err))
                 break
             except Exception:
-                logging.exception("Recv failed")
+                print("Recv failed")
                 break
 
         return data
@@ -105,7 +106,7 @@ class PeersManager(Thread):
                 try:
                     payload = self._read_from_socket(socket)
                 except Exception as e:
-                    logging.error("Recv failed %s" % e.__str__())
+                    print("Recv failed %s" % e.__str__())
                     self.remove_peer(peer)
                     continue
 
@@ -118,11 +119,11 @@ class PeersManager(Thread):
         try:
             handshake = message.Handshake(self.torrent.info_hash)
             peer.send_to_peer(handshake.to_bytes())
-            logging.info("new peer added : %s" % peer.ip)
+            print("new peer added : %s" % peer.ip)
             return True
 
         except Exception:
-            logging.exception("Error when sending Handshake message")
+            print("Error when sending Handshake message")
 
         return False
 
@@ -138,7 +139,7 @@ class PeersManager(Thread):
             try:
                 peer.socket.close()
             except Exception:
-                logging.exception("")
+                print("")
 
             self.peers.remove(peer)
 
@@ -155,7 +156,7 @@ class PeersManager(Thread):
 
     def _process_new_message(self, new_message: message.Message, peer: peer.Peer):
         if isinstance(new_message, message.Handshake) or isinstance(new_message, message.KeepAlive):
-            logging.error("Handshake or KeepALive should have already been handled")
+            print("Handshake or KeepALive should have already been handled")
 
         elif isinstance(new_message, message.Choke):
             peer.handle_choke()
@@ -188,4 +189,4 @@ class PeersManager(Thread):
             peer.handle_port_request()
 
         else:
-            logging.error("Unknown message")
+            print("Unknown message")

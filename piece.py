@@ -3,7 +3,6 @@ __author__ = 'alexisgallepe'
 import hashlib
 import math
 import time
-import logging
 
 from pubsub import pub
 from block import Block, BLOCK_SIZE, State
@@ -96,7 +95,7 @@ class Piece(object):
             except IOError:
                 f = open(path_file, 'wb')  # New file
             except Exception:
-                logging.exception("Can't write to file")
+                print("Can't write to file")
                 return
 
             f.seek(file_offset)
@@ -117,6 +116,6 @@ class Piece(object):
         if hashed_piece_raw_data == self.piece_hash:
             return True
 
-        logging.warning("Error Piece Hash")
-        logging.debug("{} : {}".format(hashed_piece_raw_data, self.piece_hash))
+        print("Error Piece Hash")
+        print("{} : {}".format(hashed_piece_raw_data, self.piece_hash))
         return False

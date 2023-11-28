@@ -3,7 +3,8 @@ import math
 __author__ = 'alexisgallepe'
 
 import hashlib
-import time
+import random
+import string
 from bcoding import bencode, bdecode
 import os
 import requests
@@ -52,26 +53,16 @@ class Torrent(object):
         return self.load(contents)
 
     def init_files(self):
-        # 获取种子中根目录的路径
         root = self.torrent_file['info']['name']
-        # 如果有files字段，则表明种子中包含多个文件
         if 'files' in self.torrent_file['info']:
             if not os.path.exists(root):
-                # 创建根目录，并定义其权限为没有特殊权限设定（0），所有者读写执行（4+2+1），用户和访客读写（4+2）
                 os.mkdir(root, 0o0766 )
-            # 遍历根目录下的所有文件路径
             for file in self.torrent_file['info']['files']:
-                # 将文件路径的各个部分同根目录拼接起来
-                # file["path"]的结构形如["music", "song.mp3"]
                 path_file = os.path.join(root, *file["path"])
-                # 检查该文件的父路径是否存在，若不存在则创建该父路径
                 if not os.path.exists(os.path.dirname(path_file)):
                     os.makedirs(os.path.dirname(path_file))
-                # 存储文件路径，并附上文件大小
                 self.file_names.append({"path": path_file , "length": file["length"]})
-                # 更新种子的总大小
                 self.total_length += file["length"]
-        # 若没有files字段，说明种子中只有一个文件
         else:
             self.file_names.append({"path": root , "length": self.torrent_file['info']['length']})
             self.total_length = self.torrent_file['info']['length']
@@ -85,5 +76,4 @@ class Torrent(object):
         return trackers_list
 
     def generate_peer_id(self):
-        seed = str(time.time())
-        return hashlib.sha1(seed.encode('utf-8')).digest()
+        return '-qBXYZ0-' + ''.join(random.sample(string.ascii_letters + string.digits, 12))

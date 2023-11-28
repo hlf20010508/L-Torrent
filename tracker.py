@@ -7,11 +7,15 @@ from peers_manager import PeersManager
 __author__ = 'alexisgallepe'
 
 import requests
-import logging
 from bcoding import bdecode
 import socket
 from urllib.parse import urlparse
 
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+MAX_PEERS_TRY_CONNECT = 30
+MAX_PEERS_CONNECTED = 8
 
 class SockAddr:
     def __init__(self, ip, port, allowed=True):
@@ -33,39 +37,43 @@ class Tracker(object):
         self.dict_sock_addr = {}
 
     def get_peers_from_trackers(self):
-        for i, tracker_url in enumerate(self.torrent.announce_list):
+        for tracker_url in self.torrent.announce_list:
+            if len(self.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
+                break
+
             if str.startswith(tracker_url, "http"):
                 try:
-                    self.http_scraper(self.torrent, tracker_url)
-                except Exception as e:
-                    logging.error("HTTP scraping failed: %s " % e.__str__())
+                    self.http_scraper(tracker_url)
+                except:
+                    print("HTTP scraping failed: %s" % tracker_url)
 
-            if str.startswith(tracker_url, "udp"):
+            elif str.startswith(tracker_url, "udp"):
                 try:
                     self.udp_scrapper(tracker_url)
-                except Exception as e:
-                    logging.error("UDP scraping failed: %s " % e.__str__())
+                except:
+                    print("UDP scraping failed: %s " % tracker_url)
 
             else:
-                logging.error("unknown scheme for: %s " % tracker_url)
+                print("unknown scheme for: %s " % tracker_url)
 
         self.try_peer_connect()
 
         return self.connected_peers
 
     def try_peer_connect(self):
-        logging.info("Trying to connect to %d peer(s)" % len(self.dict_sock_addr))
+        print("Trying to connect to %d peer(s)" % len(self.dict_sock_addr))
 
         for _, sock_addr in self.dict_sock_addr.items():
+            if len(self.connected_peers) >= MAX_PEERS_CONNECTED:
+                break
             new_peer = peer.Peer(int(self.torrent.number_of_pieces), sock_addr.ip, sock_addr.port)
             if not new_peer.connect(timeout=self.timeout):
                 continue
-
-            print('Connected to %d peers' % len(self.connected_peers))
-
             self.connected_peers[new_peer.__hash__()] = new_peer
+            print('Connected to %d/%d peers' % (len(self.connected_peers), MAX_PEERS_CONNECTED))
 
-    def http_scraper(self, torrent, tracker):
+    def http_scraper(self, tracker):
+        torrent = self.torrent
         params = {
             'info_hash': torrent.info_hash,
             'peer_id': torrent.peer_id,
@@ -76,39 +84,37 @@ class Tracker(object):
             'event': 'started'
         }
 
-        try:
-            answer_tracker = requests.get(tracker, params=params, verify=False, timeout=self.timeout)
-            list_peers = bdecode(answer_tracker.content)
-            offset=0
-            if not type(list_peers['peers']) == list:
-                '''
-                    - Handles bytes form of list of peers
-                    - IP address in bytes form:
-                        - Size of each IP: 6 bytes
-                        - The first 4 bytes are for IP address
-                        - Next 2 bytes are for port number
-                    - To unpack initial 4 bytes !i (big-endian, 4 bytes) is used.
-                    - To unpack next 2 byets !H(big-endian, 2 bytes) is used.
-                '''
-                for _ in range(len(list_peers['peers'])//6):
-                    ip = struct.unpack_from("!i", list_peers['peers'], offset)[0]
-                    ip = socket.inet_ntoa(struct.pack("!i", ip))
-                    offset += 4
-                    port = struct.unpack_from("!H",list_peers['peers'], offset)[0]
-                    offset += 2
-                    s = SockAddr(ip,port)
-                    self.dict_sock_addr[s.__hash__()] = s
-            else:
-                for p in list_peers['peers']:
-                    s = SockAddr(p['ip'], p['port'])
-                    self.dict_sock_addr[s.__hash__()] = s
+        answer_tracker = requests.get(tracker, params=params, verify=False, timeout=self.timeout)
+        list_peers = bdecode(answer_tracker.content)
+        offset=0
+        if not type(list_peers['peers']) == list:
+            '''
+                - Handles bytes form of list of peers
+                - IP address in bytes form:
+                    - Size of each IP: 6 bytes
+                    - The first 4 bytes are for IP address
+                    - Next 2 bytes are for port number
+                - To unpack initial 4 bytes !i (big-endian, 4 bytes) is used.
+                - To unpack next 2 byets !H(big-endian, 2 bytes) is used.
+            '''
+            for _ in range(len(list_peers['peers'])//6):
+                ip = struct.unpack_from("!i", list_peers['peers'], offset)[0]
+                ip = socket.inet_ntoa(struct.pack("!i", ip))
+                offset += 4
+                port = int(struct.unpack_from("!H",list_peers['peers'], offset)[0])
+                offset += 2
+                s = SockAddr(ip,port)
+                self.dict_sock_addr[s.__hash__()] = s
+        else:
+            for p in list_peers['peers']:
+                s = SockAddr(p['ip'], int(p['port']))
+                self.dict_sock_addr[s.__hash__()] = s
+        print("HTTP scraping got peers: %s" % tracker)
+        print("Total %d peers" % len(self.dict_sock_addr))
 
-        except Exception as e:
-            logging.exception("HTTP scraping failed: %s" % e.__str__())
-
-    def udp_scrapper(self, announce):
+    def udp_scrapper(self, tracker):
         torrent = self.torrent
-        parsed = urlparse(announce)
+        parsed = urlparse(tracker)
         try:
             ip, port = socket.gethostbyname(parsed.hostname), parsed.port
         except:
@@ -147,8 +153,8 @@ class Tracker(object):
 
             if sock_addr.__hash__() not in self.dict_sock_addr:
                 self.dict_sock_addr[sock_addr.__hash__()] = sock_addr
-
-        print("Got %d peers" % len(self.dict_sock_addr))
+        print("UDP scraping got peers: %s" % tracker)
+        print("Total %d peers" % len(self.dict_sock_addr))
 
     def send_message(self, conn, sock, tracker_message):
         message = tracker_message.to_bytes()
@@ -160,18 +166,16 @@ class Tracker(object):
 
         try:
             response = PeersManager._read_from_socket(sock)
-        except socket.timeout as e:
-            logging.debug("Timeout : %s" % e)
+        except socket.timeout:
             return
-        except Exception as e:
-            logging.exception("Unexpected error when sending message : %s" % e.__str__())
+        except Exception:
             return
 
         if len(response) < size:
-            logging.debug("Did not get full message.")
+            return
 
         if action != response[0:4] or trans_id != response[4:8]:
-            logging.debug("Transaction or Action ID did not match")
+            return
 
         return response
 
@@ -181,10 +185,6 @@ TRACKERS_LIST = [
     'http://207.241.231.226:6969/announce',
     'http://46.17.46.112:8080/announce',
     'http://49.12.76.8:8080/announce',
-    'http://[2001:1b10:1000:8101:0:242:ac11:2]:6969/announce',
-    'http://[2a00:b700:1::3:1dc]:8080/announce',
-    'http://[2a01:4f8:c012:8025::1]:8080/announce',
-    'http://[2a04:ac00:1:3dd8::1:2710]:2710/announce',
     'http://bt.okmp3.ru:2710/announce',
     'http://bvarf.tracker.sh:2086/announce',
     'http://ch3oh.ru:6969/announce',

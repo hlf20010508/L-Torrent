@@ -8,7 +8,6 @@ import peers_manager
 import pieces_manager
 import torrent
 import tracker
-import logging
 import os
 import message
 
@@ -25,8 +24,8 @@ class Client(object):
         self.peers_manager = peers_manager.PeersManager(self.torrent, self.pieces_manager)
 
         self.peers_manager.start()
-        logging.info("PeersManager Started")
-        logging.info("PiecesManager Started")
+        print("PeersManager Started")
+        print("PiecesManager Started")
 
     def start(self):
         peers_dict = self.tracker.get_peers_from_trackers()
@@ -35,7 +34,7 @@ class Client(object):
         while not self.pieces_manager.all_pieces_completed():
             if not self.peers_manager.has_unchoked_peers():
                 time.sleep(1)
-                logging.info("No unchocked peers")
+                print("No unchocked peers")
                 continue
 
             for piece in self.pieces_manager.pieces:
@@ -62,7 +61,7 @@ class Client(object):
 
             time.sleep(0.1)
 
-        logging.info("File(s) downloaded successfully.")
+        print("File(s) downloaded successfully.")
         self.display_progression()
 
         self._exit_threads()
@@ -99,8 +98,6 @@ class Client(object):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-
     magnet_link = "magnet:?xt=urn:btih:ea0d3cc01490ad63405f5b1466e34e3c96b56d19"
     port = 8080
     timeout = 0.5
