@@ -129,7 +129,7 @@ class UdpTrackerAnnounce(Message):
 
         event = pack('>I', 0)
         ip = pack('>I', 0)
-        key = pack('>I', 0)
+        key = pack('>I', random.randint(0, 100000))
         num_want = pack('>i', -1)
         port = pack('>h', self.port)
 
