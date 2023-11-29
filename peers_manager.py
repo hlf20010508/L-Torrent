@@ -297,7 +297,7 @@ class PeersManager(Thread):
 
         # Events
         pub.subscribe(self.peer_requests_piece, 'PeersManager.PeerRequestsPiece')
-        pub.subscribe(self.peers_bitfield, 'PeersManager.updatePeersBitfield')
+        # pub.subscribe(self.peers_bitfield, 'PeersManager.updatePeersBitfield')
 
     def peer_requests_piece(self, request=None, peer=None):
         if not request or not peer:

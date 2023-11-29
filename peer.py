@@ -131,7 +131,7 @@ class Peer(object):
         """
         print('handle_request - %s' % self.ip)
         if self.is_interested() and self.is_unchoked():
-            pub.sendMessage('PiecesManager.PeerRequestsPiece', request=request, peer=self)
+            pub.sendMessage('PeersManager.PeerRequestsPiece', request=request, peer=self)
 
     def handle_piece(self, message):
         """
