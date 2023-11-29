@@ -35,7 +35,7 @@ class Peer(object):
         try:
             self.socket = socket.create_connection((self.ip, self.port), timeout=timeout)
             self.socket.setblocking(False)
-            print("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
+            # print("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
             self.healthy = True
 
         except Exception as e:

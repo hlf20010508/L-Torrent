@@ -26,11 +26,6 @@ SCRAPER_MAX_NUM = 10
 SCRAPER_SEMA = BoundedSemaphore(SCRAPER_MAX_NUM)
 MUTEX = Lock()
 
-# 尝试连接对等方的最大数量
-MAX_PEERS_TRY_CONNECT = 30
-# 最终成功连接的对等方的最大数量
-MAX_PEERS_CONNECTED = 8
-
 class SockAddr:
     def __init__(self, ip, port, allowed=True):
         self.ip = ip
@@ -55,10 +50,6 @@ class HTTPScraper(Thread):
     
     def run(self):
         SCRAPER_SEMA.acquire()
-        # if len(self.peers_pool.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
-        #     SCRAPER_SEMA.release()
-        #     return
-        print("HTTPScraper.run")
         try:
             torrent = self.torrent
             tracker = self.tracker
@@ -102,7 +93,6 @@ class HTTPScraper(Thread):
             return
         finally:
             SCRAPER_SEMA.release()
-        # print("Total %d peers" % len(self.peers_pool.dict_sock_addr))
 
 class UDPScraper(Thread):
     def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=0.5):
@@ -115,10 +105,6 @@ class UDPScraper(Thread):
 
     def run(self):
         SCRAPER_SEMA.acquire()
-        # if len(self.peers_pool.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
-        #     SCRAPER_SEMA.release()
-        #     return
-        print("UDPScraper.run")
         try:
             torrent = self.torrent
             tracker = self.tracker
@@ -166,7 +152,6 @@ class UDPScraper(Thread):
             return
         finally:
             SCRAPER_SEMA.release()
-        # print("Total %d peers" % len(self.peers_pool.dict_sock_addr))
     
     def send_message(self, conn, sock, tracker_message):
         message = tracker_message.to_bytes()
@@ -191,9 +176,10 @@ class UDPScraper(Thread):
 
         return response
 
-class PeersScraper(Thread):
+# class PeersScraper(Thread):
+class PeersScraper():
     def __init__(self, torrent, peers_pool, port=6881, timeout=0.5):
-        Thread.__init__(self)
+        # Thread.__init__(self)
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool
@@ -202,68 +188,68 @@ class PeersScraper(Thread):
         self.queue = queue.Queue()
     
     def run(self):
-        while True:
-            MUTEX.acquire()
-            print('PeersScraper.run')
-            task_list = []
-            for tracker in self.tracker_list:
-                if str.startswith(tracker, "http"):
-                    scraper = HTTPScraper(
-                        torrent=self.torrent,
-                        tracker=tracker,
-                        peers_pool=self.peers_pool,
-                        port=self.port,
-                        timeout=self.timeout
-                    )
-                    task_list.append(scraper)
-                    scraper.start()
-                elif str.startswith(tracker, "udp"):
-                    scraper = UDPScraper(
-                        torrent=self.torrent,
-                        tracker=tracker,
-                        peers_pool=self.peers_pool,
-                        port=self.port,
-                        timeout=self.timeout
-                    )
-                    task_list.append(scraper)
-                    scraper.start()
-                else:
-                    print("unknown scheme for: %s " % tracker)
-            for scraper in task_list:
-                scraper.join()
-
-            print("Total %d peers" % len(self.peers_pool.dict_sock_addr))
-
-            task_list = []
-            for sock_addr in self.peers_pool.dict_sock_addr.values():
-                connector = PeersConnector(
+        # while True:
+        # MUTEX.acquire()
+        print("Updating peers")
+        task_list = []
+        for tracker in self.tracker_list:
+            if str.startswith(tracker, "http"):
+                scraper = HTTPScraper(
                     torrent=self.torrent,
-                    sock_addr=sock_addr,
+                    tracker=tracker,
                     peers_pool=self.peers_pool,
-                    del_queue=self.queue,
+                    port=self.port,
                     timeout=self.timeout
                 )
-                task_list.append(connector)
-                connector.start()
-            for connector in task_list:
-                connector.join()
-            
-            for del_peer in self.queue.queue:
-                # MUTEX.acquire()
-                try:
-                    print('deleting')
-                    del self.peers_pool.dict_sock_addr[del_peer]
-                    del self.peers_pool.connected_peers[del_peer]
-                except:
-                    continue
-                # finally:
-                    # MUTEX.release()
-            
-            print('Connected to %d peers' % len(self.peers_pool.connected_peers))
+                task_list.append(scraper)
+                scraper.start()
+            elif str.startswith(tracker, "udp"):
+                scraper = UDPScraper(
+                    torrent=self.torrent,
+                    tracker=tracker,
+                    peers_pool=self.peers_pool,
+                    port=self.port,
+                    timeout=self.timeout
+                )
+                task_list.append(scraper)
+                scraper.start()
+            else:
+                print("unknown scheme for: %s " % tracker)
+        for scraper in task_list:
+            scraper.join()
 
-            MUTEX.release()
+        print("Total %d peers" % len(self.peers_pool.dict_sock_addr))
 
-            sleep(300)
+        task_list = []
+        for sock_addr in self.peers_pool.dict_sock_addr.values():
+            connector = PeersConnector(
+                torrent=self.torrent,
+                sock_addr=sock_addr,
+                peers_pool=self.peers_pool,
+                del_queue=self.queue,
+                timeout=self.timeout
+            )
+            task_list.append(connector)
+            connector.start()
+        for connector in task_list:
+            connector.join()
+        
+        for del_peer in self.queue.queue:
+            print(del_peer)
+            # MUTEX.acquire()
+            try:
+                del self.peers_pool.dict_sock_addr[del_peer]
+                del self.peers_pool.connected_peers[del_peer]
+            except:
+                continue
+            # finally:
+                # MUTEX.release()
+        
+        print('Connected to %d peers' % len(self.peers_pool.connected_peers))
+
+        # MUTEX.release()
+
+            # sleep(300)
 
 class PeersConnector(Thread):
     def __init__(self, torrent, sock_addr, peers_pool, del_queue, timeout=0.5):
@@ -276,23 +262,29 @@ class PeersConnector(Thread):
     
     def run(self):
         SCRAPER_SEMA.acquire()
-        if len(self.peers_pool.connected_peers) >= MAX_PEERS_CONNECTED:
-            SCRAPER_SEMA.release()
-            return
-        print('PeersConnector.run')
         try:
-        # for sock_addr in self.peers_pool.dict_sock_addr.values():
             new_peer = peer.Peer(int(self.torrent.number_of_pieces), self.sock_addr.ip, self.sock_addr.port)
-            if not new_peer.connect(timeout=self.timeout):
+            if not new_peer.connect(timeout=self.timeout) or not self.do_handshake(new_peer):
                 self.del_queue.put(new_peer.__hash__())
-            self.peers_pool.connected_peers[new_peer.__hash__()] = new_peer
+            else:
+                self.peers_pool.connected_peers[new_peer.__hash__()] = new_peer
+                print("new peer added : ip: %s - port: %s" % (new_peer.ip, new_peer.port))
         except:
             return
         finally:
             SCRAPER_SEMA.release()
-        # del self.peers_pool.dict_sock_addr[new_peer.__hash__()]
-        # del self.peers_pool.connected_peers[new_peer.__hash__()]
-        # print('Connected to %d peers' % len(self.peers_pool.connected_peers))
+    
+    def do_handshake(self, peer):
+        try:
+            handshake = message.Handshake(self.torrent.info_hash)
+            peer.send_to_peer(handshake.to_bytes())
+            # print("new peer added : %s" % peer.ip)
+            return True
+
+        except Exception:
+            print("Error when sending Handshake message")
+
+        return False
 
 class PeersManager(Thread):
     def __init__(self, torrent, pieces_manager, peers_pool):
@@ -375,8 +367,7 @@ class PeersManager(Thread):
     def run(self):
         while self.is_active:
             try:
-                MUTEX.acquire()
-                print('PeersManager.run')
+                # MUTEX.acquire()
                 read = [peer.socket for peer in self.peers_pool.connected_peers.values()]
                 read_list, _, _ = select.select(read, [], [], 1)
 
@@ -400,20 +391,8 @@ class PeersManager(Thread):
             except:
                 continue
             finally:
-                MUTEX.release()
+                # MUTEX.release()
                 sleep(0.1)
-
-    def _do_handshake(self, peer):
-        try:
-            handshake = message.Handshake(self.torrent.info_hash)
-            peer.send_to_peer(handshake.to_bytes())
-            print("new peer added : %s" % peer.ip)
-            return True
-
-        except Exception:
-            print("Error when sending Handshake message")
-
-        return False
 
     # def add_peers(self, peers):
     #     for peer in peers:

@@ -7,7 +7,6 @@ import time
 import peers_manager
 import pieces_manager
 import torrent
-import tracker
 import os
 import message
 
@@ -24,7 +23,7 @@ class Client(object):
         self.pieces_manager = pieces_manager.PiecesManager(self.torrent)
         self.peers_manager = peers_manager.PeersManager(self.torrent, self.pieces_manager, self.peers_pool)
 
-        self.peers_scraper.start()
+        self.peers_scraper.run()
         self.peers_manager.start()
         # print("PeersManager Started")
         # print("PiecesManager Started")
@@ -36,9 +35,10 @@ class Client(object):
 
         while not self.pieces_manager.all_pieces_completed():
             if not self.peers_manager.has_unchoked_peers():
-                time.sleep(1)
+                # time.sleep(1)
                 print("No unchocked peers")
-                continue
+                self._exit_threads()
+                # continue
 
             for piece in self.pieces_manager.pieces:
                 index = piece.piece_index
