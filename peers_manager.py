@@ -187,7 +187,7 @@ class PeersScraper():
         self.timeout = timeout
         self.queue = queue.Queue()
     
-    def run(self):
+    def start(self):
         # while True:
         # MUTEX.acquire()
         print("Updating peers")
@@ -235,7 +235,6 @@ class PeersScraper():
             connector.join()
         
         for del_peer in self.queue.queue:
-            print(del_peer)
             # MUTEX.acquire()
             try:
                 del self.peers_pool.dict_sock_addr[del_peer]
