@@ -313,7 +313,7 @@ class PeersManager(Thread):
 
     def peers_bitfield(self, bitfield=None):
         for i in range(len(self.pieces_by_peer)):
-            if bitfield[i] == 1 and peer not in self.pieces_by_peer[i][1] and self.pieces_by_peer[i][0]:
+            if bitfield[i] == 1 and peer not in self.pieces_by_peer[i][1]:
                 self.pieces_by_peer[i][1].append(peer)
                 self.pieces_by_peer[i][0] = len(self.pieces_by_peer[i][1])
 
