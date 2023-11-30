@@ -1,12 +1,11 @@
 __author__ = 'alexisgallepe'
 
 import select
-from threading import Thread, BoundedSemaphore, Lock
+from threading import Thread, BoundedSemaphore
 from pubsub import pub
 import rarest_piece
 import message
 import peer
-import errno
 import socket
 import random
 import requests
@@ -24,7 +23,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # 定义最大线程数
 SCRAPER_MAX_NUM = 10
 SCRAPER_SEMA = BoundedSemaphore(SCRAPER_MAX_NUM)
-MUTEX = Lock()
 
 class SockAddr:
     def __init__(self, ip, port, allowed=True):

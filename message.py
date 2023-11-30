@@ -21,7 +21,7 @@ class MessageDispatcher:
 
     def dispatch(self):
         try:
-            payload_length, message_id, = unpack(">IB", self.payload[:5])
+            _, message_id, = unpack(">IB", self.payload[:5])
         except Exception as e:
             print("Error when unpacking message : %s" % e.__str__())
             return None
