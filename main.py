@@ -12,7 +12,7 @@ import message
 
 
 class Client(object):
-    percentage_completed = -1
+    # percentage_completed = -1
     last_log_line = ""
 
     def __init__(self, port, torrent_path='', magnet_link='', timeout=0.5, custom_storage=None):
@@ -47,6 +47,9 @@ class Client(object):
 
             for piece in self.pieces_manager.pieces:
                 index = piece.piece_index
+
+                if not self.pieces_manager.pieces[index].is_active:
+                    continue
 
                 if self.pieces_manager.pieces[index].is_full:
                     continue
@@ -90,33 +93,34 @@ class Client(object):
             self.last_update = time.time()
             return
 
-        new_progression = 0
+        # new_progression = 0
 
-        for i in range(self.pieces_manager.number_of_pieces):
-            if self.pieces_manager.pieces[i].is_full:
-                new_progression += self.pieces_manager.pieces[i].piece_size
+        # for i in range(self.pieces_manager.number_of_pieces):
+        #     if self.pieces_manager.pieces[i].is_full:
+        #         new_progression += self.pieces_manager.pieces[i].piece_size
             # for j in range(self.pieces_manager.pieces[i].number_of_blocks):
                 # if self.pieces_manager.pieces[i].blocks[j].state == State.FULL:
                     # new_progression += len(self.pieces_manager.pieces[i].blocks[j].data)
 
-        if new_progression == self.percentage_completed:
-            return
+        # if new_progression == self.percentage_completed:
+        #     return
 
         number_of_peers = self.peers_manager.unchoked_peers_count()
-        percentage_completed = float((float(new_progression) / self.torrent.total_length) * 100)
+        # percentage_completed = float((float(new_progression) / self.torrent.total_length) * 100)
+        percentage_completed = (self.pieces_manager.complete_pieces / self.pieces_manager.number_of_active_pieces) * 100
 
-        current_log_line = "Connected peers: {} - {}% completed | {}/{} pieces".format(
+        current_log_line = "Connected peers: %d - %.2f%% completed | %d/%d pieces" % (
             number_of_peers,
-            round(percentage_completed, 2),
+            percentage_completed,
             self.pieces_manager.complete_pieces,
-            self.pieces_manager.number_of_pieces
+            self.pieces_manager.number_of_active_pieces
         )
         if current_log_line != self.last_log_line:
             self.last_update = now
             print(current_log_line)
 
         self.last_log_line = current_log_line
-        self.percentage_completed = new_progression
+        # self.percentage_completed = new_progression
 
     def _exit_threads(self):
         self.peers_manager.is_active = False

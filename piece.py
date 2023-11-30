@@ -19,6 +19,7 @@ class Piece(object):
         self.number_of_blocks: int = int(math.ceil(float(piece_size) / BLOCK_SIZE))
         self.blocks: list[Block] = []
         self.custom_storage = custom_storage
+        self.is_active = 0
 
         self._init_blocks()
 

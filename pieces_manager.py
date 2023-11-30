@@ -12,16 +12,49 @@ class PiecesManager(object):
         self.bitfield = bitstring.BitArray(self.number_of_pieces)
         self.custom_storage = custom_storage
         self.pieces = self._generate_pieces()
+        self.selection = self.select_file()
         self.files = self._load_files()
+        self.number_of_active_pieces = self.get_active_pieces_num()
         self.complete_pieces = 0
 
         for file in self.files:
-            id_piece = file['idPiece']
-            self.pieces[id_piece].files.append(file)
+            if file['fileId'] in self.selection:
+                id_piece = file['idPiece']
+                self.pieces[id_piece].files.append(file)
 
         # events
         pub.subscribe(self.receive_block_piece, 'PiecesManager.Piece')
         pub.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
+
+    def select_file(self):
+        print('0. Exit')
+        print('1. All')
+        for i, file_info in enumerate(self.torrent.file_names):
+            print('%d. \"%s\" %.2fMB' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024))
+        selection = input('Select files: ').split()
+        result = []
+        for i in selection:
+            # range
+            rg = [int(item) for item in i.split('-')]
+            if len(rg) > 1:
+                rg = range(rg[0], rg[1] + 1)
+            result.extend(rg)
+
+        if max(result) > len(self.torrent.file_names) + 1:
+            raise Exception('Wrong file number')
+        elif 0 in result:
+            exit(0)
+        elif 1 in result:
+            return range(0, len(self.torrent.file_names))
+        else:
+            return [item - 2 for item in result]
+
+    def get_active_pieces_num(self):
+        count = 0
+        for piece in self.pieces:
+            if piece.is_active:
+                count += 1
+        return count
 
     def update_bitfield(self, piece_index):
         self.bitfield[piece_index] = 1
@@ -52,7 +85,7 @@ class PiecesManager(object):
 
     def all_pieces_completed(self):
         for piece in self.pieces:
-            if not piece.is_full:
+            if piece.is_active and not piece.is_full:
                 return False
 
         return True
@@ -77,13 +110,15 @@ class PiecesManager(object):
         files = []
         piece_offset = 0
         piece_size_used = 0
-
-        for f in self.torrent.file_names:
+        for i, f in enumerate(self.torrent.file_names):
             current_size_file = f["length"]
             file_offset = 0
-
+            is_active = 1
+            if i not in self.selection:
+                is_active = 0
             while current_size_file > 0:
                 id_piece = int(piece_offset / self.torrent.piece_length)
+                self.pieces[id_piece].is_active += is_active
                 piece_size = self.pieces[id_piece].piece_size - piece_size_used
 
                 if current_size_file - piece_size >= 0:
@@ -92,7 +127,8 @@ class PiecesManager(object):
                             "idPiece": id_piece,
                             "fileOffset": file_offset,
                             "pieceOffset": piece_size_used,
-                            "path": f["path"]
+                            "path": f["path"],
+                            'fileId': i
                             }
                     piece_offset += piece_size
                     file_offset += piece_size
@@ -102,7 +138,8 @@ class PiecesManager(object):
                             "idPiece": id_piece,
                             "fileOffset": file_offset,
                             "pieceOffset": piece_size_used,
-                            "path": f["path"]
+                            "path": f["path"],
+                            'fileId': i
                             }
                     piece_offset += current_size_file
                     file_offset += current_size_file
