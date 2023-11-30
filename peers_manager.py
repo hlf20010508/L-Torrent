@@ -1,4 +1,4 @@
-__author__ = 'alexisgallepe'
+__author__ = 'alexisgallepe, L-ING'
 
 import select
 from threading import Thread, BoundedSemaphore
@@ -14,7 +14,6 @@ import struct
 from urllib.parse import urlparse
 import ipaddress
 from message import UdpTrackerConnection, UdpTrackerAnnounce, UdpTrackerAnnounceOutput
-# from time import sleep
 import queue
 
 import urllib3

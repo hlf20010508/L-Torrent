@@ -1,9 +1,8 @@
-__author__ = 'alexisgallepe'
+__author__ = 'alexisgallepe, L-ING'
 
 import hashlib
 import math
 import time
-
 from pubsub import pub
 from block import Block, BLOCK_SIZE, State
 

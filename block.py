@@ -1,4 +1,4 @@
-__author__ = 'alexisgallepe'
+__author__ = 'alexisgallepe, L-ING'
 
 from enum import Enum
 

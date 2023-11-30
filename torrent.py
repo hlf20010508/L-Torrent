@@ -1,7 +1,6 @@
+__author__ = 'alexisgallepe, L-ING'
+
 import math
-
-__author__ = 'alexisgallepe'
-
 import hashlib
 import random
 import string

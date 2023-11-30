@@ -1,8 +1,7 @@
+__author__ = 'alexisgallepe, L-ING'
+
 import sys
 from block import State
-
-__author__ = 'alexisgallepe'
-
 import time
 import peers_manager
 import pieces_manager

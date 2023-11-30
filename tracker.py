@@ -1,3 +1,5 @@
+__author__ = 'L-ING'
+
 TRACKERS_LIST = [
     'http://1337.abcvg.info:80/announce',
     'http://207.241.226.111:6969/announce',

@@ -1,3 +1,5 @@
+__author__ = 'alexisgallepe, L-ING'
+
 import random
 import socket
 from struct import pack, unpack
