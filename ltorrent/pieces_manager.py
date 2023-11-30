@@ -2,7 +2,7 @@ __author__ = 'alexisgallepe, L-ING'
 
 import bitstring
 from pubsub import pub
-import piece
+from ltorrent.piece import Piece
 
 
 class PiecesManager(object):
@@ -99,10 +99,10 @@ class PiecesManager(object):
             end = start + 20
 
             if i != last_piece:
-                pieces.append(piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end], self.custom_storage))
+                pieces.append(Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end], self.custom_storage))
             else:
                 piece_length = self.torrent.total_length - (self.number_of_pieces - 1) * self.torrent.piece_length
-                pieces.append(piece.Piece(i, piece_length, self.torrent.pieces[start:end], self.custom_storage))
+                pieces.append(Piece(i, piece_length, self.torrent.pieces[start:end], self.custom_storage))
 
         return pieces
 

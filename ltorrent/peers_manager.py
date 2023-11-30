@@ -11,8 +11,25 @@ import struct
 from urllib.parse import urlparse
 import ipaddress
 import queue
-import message
-import peer
+from ltorrent.message import (
+    UdpTrackerConnection,
+    UdpTrackerAnnounce,
+    UdpTrackerAnnounceOutput,
+    Handshake,
+    Piece,
+    Message,
+    Choke,
+    UnChoke,
+    Interested,
+    NotInterested,
+    Have,
+    BitField,
+    Request,
+    Cancel,
+    Port,
+    KeepAlive
+)
+from ltorrent.peer import Peer
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -37,7 +54,7 @@ class PeersPool:
 
 
 class HTTPScraper(Thread):
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=0.5):
+    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=1):
         Thread.__init__(self)
         self.torrent = torrent
         self.tracker = tracker
@@ -93,7 +110,7 @@ class HTTPScraper(Thread):
 
 
 class UDPScraper(Thread):
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=0.5):
+    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=1):
         Thread.__init__(self)
         self.torrent = torrent
         self.tracker = tracker
@@ -121,16 +138,16 @@ class UDPScraper(Thread):
             if ipaddress.ip_address(ip).is_private:
                 return
 
-            tracker_connection_input = message.UdpTrackerConnection()
+            tracker_connection_input = UdpTrackerConnection()
             response = self.send_message((ip, port), sock, tracker_connection_input)
 
             if not response:
                 raise Exception("No response for UdpTrackerConnection")
 
-            tracker_connection_output = message.UdpTrackerConnection()
+            tracker_connection_output = UdpTrackerConnection()
             tracker_connection_output.from_bytes(response)
 
-            tracker_announce_input = message.UdpTrackerAnnounce(
+            tracker_announce_input = UdpTrackerAnnounce(
                 torrent.info_hash,
                 tracker_connection_output.conn_id,
                 torrent.peer_id,
@@ -141,7 +158,7 @@ class UDPScraper(Thread):
             if not response:
                 raise Exception("No response for UdpTrackerAnnounce")
 
-            tracker_announce_output = message.UdpTrackerAnnounceOutput()
+            tracker_announce_output = UdpTrackerAnnounceOutput()
             tracker_announce_output.from_bytes(response)
 
             for ip, port in tracker_announce_output.list_sock_addr:
@@ -178,7 +195,7 @@ class UDPScraper(Thread):
 
 
 class PeersScraper():
-    def __init__(self, torrent, peers_pool, port=6881, timeout=0.5):
+    def __init__(self, torrent, peers_pool, port=6881, timeout=1):
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool
@@ -242,7 +259,7 @@ class PeersScraper():
 
 
 class PeersConnector(Thread):
-    def __init__(self, torrent, sock_addr, peers_pool, del_queue, timeout=0.5):
+    def __init__(self, torrent, sock_addr, peers_pool, del_queue, timeout=1):
         Thread.__init__(self)
         self.torrent = torrent
         self.sock_addr = sock_addr
@@ -253,7 +270,7 @@ class PeersConnector(Thread):
     def run(self):
         THREAD_SEMA.acquire()
         try:
-            new_peer = peer.Peer(int(self.torrent.number_of_pieces), self.sock_addr.ip, self.sock_addr.port)
+            new_peer = Peer(int(self.torrent.number_of_pieces), self.sock_addr.ip, self.sock_addr.port)
             if not new_peer.connect(timeout=self.timeout) or not self.do_handshake(new_peer):
                 self.del_queue.put(new_peer.__hash__())
             else:
@@ -266,7 +283,7 @@ class PeersConnector(Thread):
     
     def do_handshake(self, peer):
         try:
-            handshake = message.Handshake(self.torrent.info_hash)
+            handshake = Handshake(self.torrent.info_hash)
             peer.send_to_peer(handshake.to_bytes())
             return True
 
@@ -296,7 +313,7 @@ class PeersManager(Thread):
 
         block = self.pieces_manager.get_block(piece_index, block_offset, block_length)
         if block:
-            piece = message.Piece(piece_index, block_offset, block_length, block).to_bytes()
+            piece = Piece(piece_index, block_offset, block_length, block).to_bytes()
             peer.send_to_peer(piece)
             print("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
 
@@ -377,38 +394,38 @@ class PeersManager(Thread):
                 return peer
         raise Exception("Peer not present in peer_list")
 
-    def _process_new_message(self, new_message: message.Message, peer: peer.Peer):
-        if isinstance(new_message, message.Handshake) or isinstance(new_message, message.KeepAlive):
+    def _process_new_message(self, new_message: Message, peer: Peer):
+        if isinstance(new_message, Handshake) or isinstance(new_message, KeepAlive):
             print("Handshake or KeepALive should have already been handled")
 
-        elif isinstance(new_message, message.Choke):
+        elif isinstance(new_message, Choke):
             peer.handle_choke()
 
-        elif isinstance(new_message, message.UnChoke):
+        elif isinstance(new_message, UnChoke):
             peer.handle_unchoke()
 
-        elif isinstance(new_message, message.Interested):
+        elif isinstance(new_message, Interested):
             peer.handle_interested()
 
-        elif isinstance(new_message, message.NotInterested):
+        elif isinstance(new_message, NotInterested):
             peer.handle_not_interested()
 
-        elif isinstance(new_message, message.Have):
+        elif isinstance(new_message, Have):
             peer.handle_have(new_message)
 
-        elif isinstance(new_message, message.BitField):
+        elif isinstance(new_message, BitField):
             peer.handle_bitfield(new_message)
 
-        elif isinstance(new_message, message.Request):
+        elif isinstance(new_message, Request):
             peer.handle_request(new_message)
 
-        elif isinstance(new_message, message.Piece):
+        elif isinstance(new_message, Piece):
             peer.handle_piece(new_message)
 
-        elif isinstance(new_message, message.Cancel):
+        elif isinstance(new_message, Cancel):
             peer.handle_cancel()
 
-        elif isinstance(new_message, message.Port):
+        elif isinstance(new_message, Port):
             peer.handle_port_request()
 
         else:

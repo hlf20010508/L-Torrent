@@ -5,7 +5,14 @@ import socket
 import struct
 import bitstring
 from pubsub import pub
-import message
+from ltorrent.message import (
+    WrongMessageException,
+    UnChoke,
+    Interested,
+    Handshake,
+    KeepAlive,
+    MessageDispatcher
+)
 
 
 class Peer(object):
@@ -29,7 +36,7 @@ class Peer(object):
     def __hash__(self):
         return "%s:%d" % (self.ip, self.port)
 
-    def connect(self, timeout=None):
+    def connect(self, timeout=1):
         try:
             self.socket = socket.create_connection((self.ip, self.port), timeout=timeout)
             self.socket.setblocking(False)
@@ -86,7 +93,7 @@ class Peer(object):
         self.state['peer_interested'] = True
 
         if self.am_choking():
-            unchoke = message.UnChoke().to_bytes()
+            unchoke = UnChoke().to_bytes()
             self.send_to_peer(unchoke)
 
     def handle_not_interested(self):
@@ -101,7 +108,7 @@ class Peer(object):
         self.bit_field[have.piece_index] = True
 
         if self.is_choking() and not self.state['am_interested']:
-            interested = message.Interested().to_bytes()
+            interested = Interested().to_bytes()
             self.send_to_peer(interested)
             self.state['am_interested'] = True
 
@@ -113,7 +120,7 @@ class Peer(object):
         self.bit_field = bitfield.bitfield
 
         if self.is_choking() and not self.state['am_interested']:
-            interested = message.Interested().to_bytes()
+            interested = Interested().to_bytes()
             self.send_to_peer(interested)
             self.state['am_interested'] = True
 
@@ -139,7 +146,7 @@ class Peer(object):
 
     def _handle_handshake(self):
         try:
-            handshake_message = message.Handshake.from_bytes(self.read_buffer)
+            handshake_message = Handshake.from_bytes(self.read_buffer)
             self.has_handshaked = True
             self.read_buffer = self.read_buffer[handshake_message.total_length:]
             print('handle_handshake - %s' % self.ip)
@@ -153,9 +160,9 @@ class Peer(object):
 
     def _handle_keep_alive(self):
         try:
-            keep_alive = message.KeepAlive.from_bytes(self.read_buffer)
+            keep_alive = KeepAlive.from_bytes(self.read_buffer)
             print('handle_keep_alive - %s' % self.ip)
-        except message.WrongMessageException:
+        except WrongMessageException:
             return False
         except:
             print("Error KeepALive, (need at least 4 bytes : {})".format(len(self.read_buffer)))
@@ -179,8 +186,8 @@ class Peer(object):
                 self.read_buffer = self.read_buffer[total_length:]
 
             try:
-                received_message = message.MessageDispatcher(payload).dispatch()
+                received_message = MessageDispatcher(payload).dispatch()
                 if received_message:
                     yield received_message
-            except message.WrongMessageException as e:
+            except WrongMessageException as e:
                 print(e.__str__())

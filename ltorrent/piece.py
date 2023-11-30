@@ -4,7 +4,7 @@ import hashlib
 import math
 import time
 from pubsub import pub
-from block import Block, BLOCK_SIZE, State
+from ltorrent.block import Block, BLOCK_SIZE, State
 
 
 class Piece(object):

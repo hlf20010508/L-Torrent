@@ -16,20 +16,29 @@ A pure python torrent client based on PyTorrent
 - Scrape peers while downloading.
 - Accept new peers while downloading.
 
-## Dependencies
+## File Selection
+Input number of files, seperated by `Space`, eg: `2 5 7`.
+
+Range supported, linked by `-`, eg: `4 6-10 12 14-20`.
+
+## Installation
 ```sh
-pipenv install
+# using pip
+pip install git+https://github.com/hlf20010508/LTorrent.git
+# using pipenv
+pipenv install git+https://github.com/hlf20010508/LTorrent.git#egg=LTorrent
 ```
 
 ## Start
 ### Run Demo
 ```sh
-pipenv run python client.py
+pipenv install
+pipenv run python demo.py
 ```
 
 ### Torrent File
 ```py
-from client import Client
+from ltorrent.client import Client
 
 torrent_path = "your-torrent-path"
 port = 8080
@@ -45,7 +54,7 @@ client.start()
 
 ### Magnet Link
 ```py
-from client import Client
+from ltorrent.client import Client
 
 magnet_link = "your-magnet-link"
 port = 8080
@@ -60,12 +69,15 @@ client.start()
 ```
 
 ### Custom Storage
-See full example in `client.py`.
+See full example in `examples/custom_storage.py`.
 ```py
-from client import Client
+from ltorrent.client import Client, CustomStorage
 
 
-class CustomStorage:
+class MyStorage(CustomStorage):
+    def __init__(self):
+        CustomStorage.__init__(self)
+
     def write(self, file_piece_list, data):
         for file_piece in file_piece_list:
             path_file = os.path.join('downloads', file_piece["path"].split('/')[-1])
@@ -91,7 +103,7 @@ class CustomStorage:
 magnet_link = "your-magnet-link"
 port = 8080
 timeout = 1
-custom_storage = CustomStorage()
+custom_storage = MyStorage()
 
 client = Client(
     port,

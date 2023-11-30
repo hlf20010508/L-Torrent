@@ -7,7 +7,7 @@ import string
 from bcoding import bencode, bdecode
 import os
 import requests
-from tracker import TRACKERS_LIST
+from ltorrent.tracker import TRACKERS_LIST
 
 
 class Torrent(object):
