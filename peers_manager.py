@@ -267,7 +267,7 @@ class PeersConnector(Thread):
                 self.del_queue.put(new_peer.__hash__())
             else:
                 self.peers_pool.connected_peers[new_peer.__hash__()] = new_peer
-                print("new peer added : ip: %s - port: %s" % (new_peer.ip, new_peer.port))
+                print("new peer added: ip: %s - port: %s" % (new_peer.ip, new_peer.port))
         except:
             return
         finally:
