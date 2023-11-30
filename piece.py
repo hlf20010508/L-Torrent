@@ -9,7 +9,7 @@ from block import Block, BLOCK_SIZE, State
 
 
 class Piece(object):
-    def __init__(self, piece_index: int, piece_size: int, piece_hash: str):
+    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, custom_storage=None):
         self.piece_index: int = piece_index
         self.piece_size: int = piece_size
         self.piece_hash: str = piece_hash
@@ -18,6 +18,7 @@ class Piece(object):
         self.raw_data: bytes = b''
         self.number_of_blocks: int = int(math.ceil(float(piece_size) / BLOCK_SIZE))
         self.blocks: list[Block] = []
+        self.custom_storage = custom_storage
 
         self._init_blocks()
 
@@ -34,7 +35,39 @@ class Piece(object):
             self.blocks[index].state = State.FULL
 
     def get_block(self, block_offset, block_length):
-        return self.raw_data[block_offset:block_length]
+        # return return self.raw_data[block_offset:block_offset + block_length]
+        if self.custom_storage:
+            return self.custom_storage.read(self.files, block_offset, block_length)
+
+        file_data_list = []
+        for file in self.files:
+            # 文件路径
+            path_file = file["path"]
+            # 该片段中的文件数据在该文件中的偏移量
+            file_offset = file["fileOffset"]
+            # 该文件在该片段中的偏移量
+            piece_offset = file["pieceOffset"]
+            # 要写入的数据长度
+            length = file["length"]
+
+            try:
+                # 打开文件
+                f = open(path_file, 'rb')
+            except Exception:
+                print("Can't read file %s" % path_file)
+                return
+            # 将文件光标指向文件偏移量
+            f.seek(file_offset)
+            # 读取数据
+            data = f.read(length)
+            file_data_list.append((piece_offset, data))
+            f.close()
+        # 根据偏移量升序排序
+        file_data_list.sort(key=lambda x: x[0])
+        # 将数据拼接成片段
+        piece = b''.join([data for _, data in file_data_list])
+        # 返回指定的块
+        return piece[block_offset : block_offset + block_length]
 
     def get_empty_block(self):
         if self.is_full:
@@ -64,13 +97,16 @@ class Piece(object):
 
         self.is_full = True
         self.raw_data = data
-        self._write_piece_on_disk()
+        if self.custom_storage:
+            self.custom_storage.write(self.files, self.raw_data)
+        else:
+            self._write_piece_on_disk()
         pub.sendMessage('PiecesManager.PieceCompleted', piece_index=self.piece_index)
 
         return True
 
     def _init_blocks(self):
-        self.blocks = []
+        self.clear()
 
         if self.number_of_blocks > 1:
             for i in range(self.number_of_blocks):
@@ -82,6 +118,10 @@ class Piece(object):
 
         else:
             self.blocks.append(Block(block_size=int(self.piece_size)))
+
+    def clear(self):
+        self.raw_data = b''
+        self.blocks = []
 
     def _write_piece_on_disk(self):
         for file in self.files:

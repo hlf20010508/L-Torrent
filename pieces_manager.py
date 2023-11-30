@@ -6,10 +6,11 @@ from pubsub import pub
 
 
 class PiecesManager(object):
-    def __init__(self, torrent):
+    def __init__(self, torrent, custom_storage=None):
         self.torrent = torrent
         self.number_of_pieces = int(torrent.number_of_pieces)
         self.bitfield = bitstring.BitArray(self.number_of_pieces)
+        self.custom_storage = custom_storage
         self.pieces = self._generate_pieces()
         self.files = self._load_files()
         self.complete_pieces = 0
@@ -24,6 +25,7 @@ class PiecesManager(object):
 
     def update_bitfield(self, piece_index):
         self.bitfield[piece_index] = 1
+        self.pieces[piece_index].clear()
 
     def receive_block_piece(self, piece):
         piece_index, piece_offset, piece_data = piece
@@ -64,10 +66,10 @@ class PiecesManager(object):
             end = start + 20
 
             if i != last_piece:
-                pieces.append(piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end]))
+                pieces.append(piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end], self.custom_storage))
             else:
                 piece_length = self.torrent.total_length - (self.number_of_pieces - 1) * self.torrent.piece_length
-                pieces.append(piece.Piece(i, piece_length, self.torrent.pieces[start:end]))
+                pieces.append(piece.Piece(i, piece_length, self.torrent.pieces[start:end], self.custom_storage))
 
         return pieces
 

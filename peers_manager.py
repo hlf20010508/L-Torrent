@@ -14,15 +14,15 @@ import struct
 from urllib.parse import urlparse
 import ipaddress
 from message import UdpTrackerConnection, UdpTrackerAnnounce, UdpTrackerAnnounceOutput
-from time import sleep
+# from time import sleep
 import queue
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 定义最大线程数
-SCRAPER_MAX_NUM = 10
-SCRAPER_SEMA = BoundedSemaphore(SCRAPER_MAX_NUM)
+THREAD_MAX_NUM = 10
+THREAD_SEMA = BoundedSemaphore(THREAD_MAX_NUM)
 
 class SockAddr:
     def __init__(self, ip, port, allowed=True):
@@ -47,7 +47,7 @@ class HTTPScraper(Thread):
         self.timeout = timeout
     
     def run(self):
-        SCRAPER_SEMA.acquire()
+        THREAD_SEMA.acquire()
         try:
             torrent = self.torrent
             tracker = self.tracker
@@ -90,7 +90,7 @@ class HTTPScraper(Thread):
         except:
             return
         finally:
-            SCRAPER_SEMA.release()
+            THREAD_SEMA.release()
 
 class UDPScraper(Thread):
     def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=0.5):
@@ -102,7 +102,7 @@ class UDPScraper(Thread):
         self.timeout = timeout
 
     def run(self):
-        SCRAPER_SEMA.acquire()
+        THREAD_SEMA.acquire()
         try:
             torrent = self.torrent
             tracker = self.tracker
@@ -149,7 +149,7 @@ class UDPScraper(Thread):
         except:
             return
         finally:
-            SCRAPER_SEMA.release()
+            THREAD_SEMA.release()
     
     def send_message(self, conn, sock, tracker_message):
         message = tracker_message.to_bytes()
@@ -161,8 +161,6 @@ class UDPScraper(Thread):
 
         try:
             response = PeersManager._read_from_socket(sock)
-        except socket.timeout:
-            return
         except Exception:
             return
 
@@ -258,7 +256,7 @@ class PeersConnector(Thread):
         self.timeout = timeout
     
     def run(self):
-        SCRAPER_SEMA.acquire()
+        THREAD_SEMA.acquire()
         try:
             new_peer = peer.Peer(int(self.torrent.number_of_pieces), self.sock_addr.ip, self.sock_addr.port)
             if not new_peer.connect(timeout=self.timeout) or not self.do_handshake(new_peer):
@@ -269,7 +267,7 @@ class PeersConnector(Thread):
         except:
             return
         finally:
-            SCRAPER_SEMA.release()
+            THREAD_SEMA.release()
     
     def do_handshake(self, peer):
         try:
@@ -309,11 +307,11 @@ class PeersManager(Thread):
             peer.send_to_peer(piece)
             print("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
 
-    def peers_bitfield(self, bitfield=None):
-        for i in range(len(self.pieces_by_peer)):
-            if bitfield[i] == 1 and peer not in self.pieces_by_peer[i][1]:
-                self.pieces_by_peer[i][1].append(peer)
-                self.pieces_by_peer[i][0] = len(self.pieces_by_peer[i][1])
+    # def peers_bitfield(self, bitfield=None):
+    #     for i in range(len(self.pieces_by_peer)):
+    #         if bitfield[i] == 1 and peer not in self.pieces_by_peer[i][1]:
+    #             self.pieces_by_peer[i][1].append(peer)
+    #             self.pieces_by_peer[i][0] = len(self.pieces_by_peer[i][1])
 
     def get_random_peer_having_piece(self, index):
         ready_peers = []
@@ -387,9 +385,9 @@ class PeersManager(Thread):
                         self._process_new_message(message, peer)
             except:
                 continue
-            finally:
+            # finally:
                 # MUTEX.release()
-                sleep(0.1)
+                # sleep(0.1)
 
     # def add_peers(self, peers):
     #     for peer in peers:
