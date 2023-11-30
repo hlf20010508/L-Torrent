@@ -63,11 +63,11 @@ class PiecesManager(object):
             start = i * 20
             end = start + 20
 
-            if i == last_piece:
+            if i != last_piece:
+                pieces.append(piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end]))
+            else:
                 piece_length = self.torrent.total_length - (self.number_of_pieces - 1) * self.torrent.piece_length
                 pieces.append(piece.Piece(i, piece_length, self.torrent.pieces[start:end]))
-            else:
-                pieces.append(piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end]))
 
         return pieces
 
@@ -84,19 +84,7 @@ class PiecesManager(object):
                 id_piece = int(piece_offset / self.torrent.piece_length)
                 piece_size = self.pieces[id_piece].piece_size - piece_size_used
 
-                if current_size_file - piece_size < 0:
-                    file = {"length": current_size_file,
-                            "idPiece": id_piece,
-                            "fileOffset": file_offset,
-                            "pieceOffset": piece_size_used,
-                            "path": f["path"]
-                            }
-                    piece_offset += current_size_file
-                    file_offset += current_size_file
-                    piece_size_used += current_size_file
-                    current_size_file = 0
-
-                else:
+                if current_size_file - piece_size >= 0:
                     current_size_file -= piece_size
                     file = {"length": piece_size,
                             "idPiece": id_piece,
@@ -107,6 +95,17 @@ class PiecesManager(object):
                     piece_offset += piece_size
                     file_offset += piece_size
                     piece_size_used = 0
+                else:
+                    file = {"length": current_size_file,
+                            "idPiece": id_piece,
+                            "fileOffset": file_offset,
+                            "pieceOffset": piece_size_used,
+                            "path": f["path"]
+                            }
+                    piece_offset += current_size_file
+                    file_offset += current_size_file
+                    piece_size_used += current_size_file
+                    current_size_file = 0
 
                 files.append(file)
         return files
