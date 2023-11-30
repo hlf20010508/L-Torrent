@@ -5,7 +5,6 @@ import socket
 import struct
 import bitstring
 from pubsub import pub
-
 import message
 
 
@@ -34,11 +33,9 @@ class Peer(object):
         try:
             self.socket = socket.create_connection((self.ip, self.port), timeout=timeout)
             self.socket.setblocking(False)
-            # print("Connected to peer ip: {} - port: {}".format(self.ip, self.port))
             self.healthy = True
 
-        except Exception as e:
-            # print("Failed to connect to peer (ip: %s - port: %s - %s)" % (self.ip, self.port, e.__str__()))
+        except:
             return False
 
         return True
@@ -108,8 +105,6 @@ class Peer(object):
             self.send_to_peer(interested)
             self.state['am_interested'] = True
 
-        # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)
-
     def handle_bitfield(self, bitfield):
         """
         :type bitfield: message.BitField
@@ -121,8 +116,6 @@ class Peer(object):
             interested = message.Interested().to_bytes()
             self.send_to_peer(interested)
             self.state['am_interested'] = True
-
-        # pub.sendMessage('RarestPiece.updatePeersBitfield', bitfield=self.bit_field)
 
     def handle_request(self, request):
         """
@@ -152,7 +145,7 @@ class Peer(object):
             print('handle_handshake - %s' % self.ip)
             return True
 
-        except Exception:
+        except:
             print("First message should always be a handshake message")
             self.healthy = False
 
@@ -164,7 +157,7 @@ class Peer(object):
             print('handle_keep_alive - %s' % self.ip)
         except message.WrongMessageException:
             return False
-        except Exception:
+        except:
             print("Error KeepALive, (need at least 4 bytes : {})".format(len(self.read_buffer)))
             return False
 

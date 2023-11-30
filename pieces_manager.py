@@ -1,8 +1,8 @@
 __author__ = 'alexisgallepe, L-ING'
 
-import piece
 import bitstring
 from pubsub import pub
+import piece
 
 
 class PiecesManager(object):
@@ -123,24 +123,26 @@ class PiecesManager(object):
 
                 if current_size_file - piece_size >= 0:
                     current_size_file -= piece_size
-                    file = {"length": piece_size,
-                            "idPiece": id_piece,
-                            "fileOffset": file_offset,
-                            "pieceOffset": piece_size_used,
-                            "path": f["path"],
-                            'fileId': i
-                            }
+                    file = {
+                        "length": piece_size,
+                        "idPiece": id_piece,
+                        "fileOffset": file_offset,
+                        "pieceOffset": piece_size_used,
+                        "path": f["path"],
+                        'fileId': i
+                    }
                     piece_offset += piece_size
                     file_offset += piece_size
                     piece_size_used = 0
                 else:
-                    file = {"length": current_size_file,
-                            "idPiece": id_piece,
-                            "fileOffset": file_offset,
-                            "pieceOffset": piece_size_used,
-                            "path": f["path"],
-                            'fileId': i
-                            }
+                    file = {
+                        "length": current_size_file,
+                        "idPiece": id_piece,
+                        "fileOffset": file_offset,
+                        "pieceOffset": piece_size_used,
+                        "path": f["path"],
+                        'fileId': i
+                    }
                     piece_offset += current_size_file
                     file_offset += current_size_file
                     piece_size_used += current_size_file

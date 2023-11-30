@@ -35,38 +35,29 @@ class Piece(object):
             self.blocks[index].state = State.FULL
 
     def get_block(self, block_offset, block_length):
-        # return return self.raw_data[block_offset:block_offset + block_length]
         if self.custom_storage:
             return self.custom_storage.read(self.files, block_offset, block_length)
 
         file_data_list = []
         for file in self.files:
-            # 文件路径
             path_file = file["path"]
-            # 该片段中的文件数据在该文件中的偏移量
             file_offset = file["fileOffset"]
-            # 该文件在该片段中的偏移量
             piece_offset = file["pieceOffset"]
-            # 要写入的数据长度
             length = file["length"]
 
             try:
-                # 打开文件
                 f = open(path_file, 'rb')
-            except Exception:
+            except:
                 print("Can't read file %s" % path_file)
                 return
-            # 将文件光标指向文件偏移量
+
             f.seek(file_offset)
-            # 读取数据
             data = f.read(length)
             file_data_list.append((piece_offset, data))
             f.close()
-        # 根据偏移量升序排序
+
         file_data_list.sort(key=lambda x: x[0])
-        # 将数据拼接成片段
         piece = b''.join([data for _, data in file_data_list])
-        # 返回指定的块
         return piece[block_offset : block_offset + block_length]
 
     def get_empty_block(self):
@@ -134,7 +125,7 @@ class Piece(object):
                 f = open(path_file, 'r+b')  # Already existing file
             except IOError:
                 f = open(path_file, 'wb')  # New file
-            except Exception:
+            except:
                 print("Can't write to file")
                 return
 

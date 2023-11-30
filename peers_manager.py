@@ -3,9 +3,6 @@ __author__ = 'alexisgallepe, L-ING'
 import select
 from threading import Thread, BoundedSemaphore
 from pubsub import pub
-import rarest_piece
-import message
-import peer
 import socket
 import random
 import requests
@@ -13,15 +10,16 @@ from bcoding import bdecode
 import struct
 from urllib.parse import urlparse
 import ipaddress
-from message import UdpTrackerConnection, UdpTrackerAnnounce, UdpTrackerAnnounceOutput
 import queue
-
+import message
+import peer
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# 定义最大线程数
 THREAD_MAX_NUM = 10
 THREAD_SEMA = BoundedSemaphore(THREAD_MAX_NUM)
+
 
 class SockAddr:
     def __init__(self, ip, port, allowed=True):
@@ -32,9 +30,11 @@ class SockAddr:
     def __hash__(self):
         return "%s:%d" % (self.ip, self.port)
 
+
 class PeersPool:
     dict_sock_addr = {}
     connected_peers = {}
+
 
 class HTTPScraper(Thread):
     def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=0.5):
@@ -65,13 +65,13 @@ class HTTPScraper(Thread):
             offset=0
             if not type(list_peers['peers']) == list:
                 '''
-                    - Handles bytes form of list of peers
-                    - IP address in bytes form:
-                        - Size of each IP: 6 bytes
-                        - The first 4 bytes are for IP address
-                        - Next 2 bytes are for port number
-                    - To unpack initial 4 bytes !i (big-endian, 4 bytes) is used.
-                    - To unpack next 2 byets !H(big-endian, 2 bytes) is used.
+                - Handles bytes form of list of peers
+                - IP address in bytes form:
+                    - Size of each IP: 6 bytes
+                    - The first 4 bytes are for IP address
+                    - Next 2 bytes are for port number
+                - To unpack initial 4 bytes !i (big-endian, 4 bytes) is used.
+                - To unpack next 2 byets !H(big-endian, 2 bytes) is used.
                 '''
                 for _ in range(len(list_peers['peers'])//6):
                     ip = struct.unpack_from("!i", list_peers['peers'], offset)[0]
@@ -90,6 +90,7 @@ class HTTPScraper(Thread):
             return
         finally:
             THREAD_SEMA.release()
+
 
 class UDPScraper(Thread):
     def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=0.5):
@@ -120,23 +121,27 @@ class UDPScraper(Thread):
             if ipaddress.ip_address(ip).is_private:
                 return
 
-            tracker_connection_input = UdpTrackerConnection()
+            tracker_connection_input = message.UdpTrackerConnection()
             response = self.send_message((ip, port), sock, tracker_connection_input)
 
             if not response:
                 raise Exception("No response for UdpTrackerConnection")
 
-            tracker_connection_output = UdpTrackerConnection()
+            tracker_connection_output = message.UdpTrackerConnection()
             tracker_connection_output.from_bytes(response)
 
-            tracker_announce_input = UdpTrackerAnnounce(torrent.info_hash, tracker_connection_output.conn_id,
-                                                        torrent.peer_id, self.port)
+            tracker_announce_input = message.UdpTrackerAnnounce(
+                torrent.info_hash,
+                tracker_connection_output.conn_id,
+                torrent.peer_id,
+                self.port
+            )
             response = self.send_message((ip, port), sock, tracker_announce_input)
 
             if not response:
                 raise Exception("No response for UdpTrackerAnnounce")
 
-            tracker_announce_output = UdpTrackerAnnounceOutput()
+            tracker_announce_output = message.UdpTrackerAnnounceOutput()
             tracker_announce_output.from_bytes(response)
 
             for ip, port in tracker_announce_output.list_sock_addr:
@@ -160,7 +165,7 @@ class UDPScraper(Thread):
 
         try:
             response = PeersManager._read_from_socket(sock)
-        except Exception:
+        except:
             return
 
         if len(response) < size:
@@ -171,10 +176,9 @@ class UDPScraper(Thread):
 
         return response
 
-# class PeersScraper(Thread):
+
 class PeersScraper():
     def __init__(self, torrent, peers_pool, port=6881, timeout=0.5):
-        # Thread.__init__(self)
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool
@@ -183,8 +187,6 @@ class PeersScraper():
         self.queue = queue.Queue()
     
     def start(self):
-        # while True:
-        # MUTEX.acquire()
         print("Updating peers")
         task_list = []
         for tracker in self.tracker_list:
@@ -230,20 +232,14 @@ class PeersScraper():
             connector.join()
         
         for del_peer in self.queue.queue:
-            # MUTEX.acquire()
             try:
                 del self.peers_pool.dict_sock_addr[del_peer]
                 del self.peers_pool.connected_peers[del_peer]
             except:
                 continue
-            # finally:
-                # MUTEX.release()
         
         print('Connected to %d peers' % len(self.peers_pool.connected_peers))
 
-        # MUTEX.release()
-
-            # sleep(300)
 
 class PeersConnector(Thread):
     def __init__(self, torrent, sock_addr, peers_pool, del_queue, timeout=0.5):
@@ -272,13 +268,13 @@ class PeersConnector(Thread):
         try:
             handshake = message.Handshake(self.torrent.info_hash)
             peer.send_to_peer(handshake.to_bytes())
-            # print("new peer added : %s" % peer.ip)
             return True
 
-        except Exception:
+        except:
             print("Error when sending Handshake message")
 
         return False
+
 
 class PeersManager(Thread):
     def __init__(self, torrent, pieces_manager, peers_pool):
@@ -286,13 +282,11 @@ class PeersManager(Thread):
         self.torrent = torrent
         self.pieces_manager = pieces_manager
         self.peers_pool = peers_pool
-        self.rarest_pieces = rarest_piece.RarestPieces(pieces_manager)
         self.pieces_by_peer = [[0, []] for _ in range(pieces_manager.number_of_pieces)]
         self.is_active = True
 
         # Events
         pub.subscribe(self.peer_requests_piece, 'PeersManager.PeerRequestsPiece')
-        # pub.subscribe(self.peers_bitfield, 'PeersManager.updatePeersBitfield')
 
     def peer_requests_piece(self, request=None, peer=None):
         if not request or not peer:
@@ -305,12 +299,6 @@ class PeersManager(Thread):
             piece = message.Piece(piece_index, block_offset, block_length, block).to_bytes()
             peer.send_to_peer(piece)
             print("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
-
-    # def peers_bitfield(self, bitfield=None):
-    #     for i in range(len(self.pieces_by_peer)):
-    #         if bitfield[i] == 1 and peer not in self.pieces_by_peer[i][1]:
-    #             self.pieces_by_peer[i][1].append(peer)
-    #             self.pieces_by_peer[i][0] = len(self.pieces_by_peer[i][1])
 
     def get_random_peer_having_piece(self, index):
         ready_peers = []
@@ -332,7 +320,6 @@ class PeersManager(Thread):
                 cpt += 1
         return cpt
 
-
     @staticmethod
     def _read_from_socket(sock):
         data = b''
@@ -344,16 +331,7 @@ class PeersManager(Thread):
                     break
 
                 data += buff
-            # except socket.timeout:
-            #     break
-            except socket.error as e:
-                # err = e.args[0]
-                # if err != errno.EAGAIN or err != errno.EWOULDBLOCK:
-                #     print("Wrong errno {}".format(err))
-                # print("Error when read from socket: %s" % e.__str__())
-                break
-            except Exception:
-                print("Recv failed")
+            except:
                 break
 
         return data
@@ -361,7 +339,6 @@ class PeersManager(Thread):
     def run(self):
         while self.is_active:
             try:
-                # MUTEX.acquire()
                 read = [peer.socket for peer in self.peers_pool.connected_peers.values()]
                 read_list, _, _ = select.select(read, [], [], 1)
 
@@ -384,29 +361,15 @@ class PeersManager(Thread):
                         self._process_new_message(message, peer)
             except:
                 continue
-            # finally:
-                # MUTEX.release()
-                # sleep(0.1)
-
-    # def add_peers(self, peers):
-    #     for peer in peers:
-    #         if self._do_handshake(peer):
-    #             self.peers.append(peer)
-    #         else:
-    #             print("Error _do_handshake")
 
     def remove_peer(self, peer):
         if peer in self.peers_pool.connected_peers.values():
             try:
                 peer.socket.close()
-            except Exception:
-                print("")
+            except Exception as e:
+                print("Wrong when remove peer: %s" % e.__str__())
 
             del self.peers_pool.connected_peers[peer.__hash__()]
-
-        #for rarest_piece in self.rarest_pieces.rarest_pieces:
-        #    if peer in rarest_piece["peers"]:
-        #        rarest_piece["peers"].remove(peer)
 
     def get_peer_by_socket(self, socket):
         for peer in self.peers_pool.connected_peers.values():

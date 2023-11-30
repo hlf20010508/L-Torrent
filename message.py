@@ -3,8 +3,6 @@ __author__ = 'alexisgallepe, L-ING'
 import random
 import socket
 from struct import pack, unpack
-
-# HandShake - String identifier of the protocol for BitTorrent V1
 import bitstring
 
 HANDSHAKE_PSTR_V1 = b"BitTorrent protocol"
@@ -63,12 +61,13 @@ UDP Tracker
 
 class UdpTrackerConnection(Message):
     """
-        connect = <connection_id><action><transaction_id>
-            - connection_id = 64-bit integer
-            - action = 32-bit integer
-            - transaction_id = 32-bit integer
+    connect = <connection_id><action><transaction_id>
 
-        Total length = 64 + 32 + 32 = 128 bytes
+    - connection_id = 64-bit integer
+    - action = 32-bit integer
+    - transaction_id = 32-bit integer
+
+    Total length = 64 + 32 + 32 = 128 bytes
     """
 
     def __init__(self):
@@ -88,27 +87,27 @@ class UdpTrackerConnection(Message):
 
 class UdpTrackerAnnounce(Message):
     """
-        connect = <connection_id><action><transaction_id>
+    connect = <connection_id><action><transaction_id>
 
-        0	64-bit integer	connection_id
-8	32-bit integer	action	1
-12	32-bit integer	transaction_id
-16	20-byte string	info_hash
-36	20-byte string	peer_id
-56	64-bit integer	downloaded
-64	64-bit integer	left
-72	64-bit integer	uploaded
-80	32-bit integer	event
-84	32-bit integer	IP address	0
-88	32-bit integer	key
-92	32-bit integer	num_want	-1
-96	16-bit integer	port
+    0	64-bit integer	connection_id
+    8	32-bit integer	action	1
+    12	32-bit integer	transaction_id
+    16	20-byte string	info_hash
+    36	20-byte string	peer_id
+    56	64-bit integer	downloaded
+    64	64-bit integer	left
+    72	64-bit integer	uploaded
+    80	32-bit integer	event
+    84	32-bit integer	IP address	0
+    88	32-bit integer	key
+    92	32-bit integer	num_want	-1
+    96	16-bit integer	port
 
-            - connection_id = 64-bit integer
-            - action = 32-bit integer
-            - transaction_id = 32-bit integer
+    - connection_id = 64-bit integer
+    - action = 32-bit integer
+    - transaction_id = 32-bit integer
 
-        Total length = 64 + 32 + 32 = 128 bytes
+    Total length = 64 + 32 + 32 = 128 bytes
     """
 
     def __init__(self, info_hash, conn_id, peer_id, port):
@@ -135,25 +134,29 @@ class UdpTrackerAnnounce(Message):
         num_want = pack('>i', -1)
         port = pack('>h', self.port)
 
-        msg = (conn_id + action + trans_id + self.info_hash + peer_id + downloaded +
-               left + uploaded + event + ip + key + num_want + port)
+        msg = (
+            conn_id + action + trans_id +
+            self.info_hash + peer_id + downloaded +
+            left + uploaded + event +
+            ip + key + num_want + port
+        )
 
         return msg
 
 
 class UdpTrackerAnnounceOutput:
     """
-        connect = <connection_id><action><transaction_id>
+    connect = <connection_id><action><transaction_id>
 
-0	32-bit integer	action	1
-4	32-bit integer	transaction_id
-8	32-bit integer	interval
-12	32-bit integer	leechers
-16	32-bit integer	seeders
-20 + 6 * n	32-bit integer	IP address
-24 + 6 * n	16-bit integer	TCP port
-20 + 6 * N
+    0	32-bit integer	action	1
+    4	32-bit integer	transaction_id
+    8	32-bit integer	interval
+    12	32-bit integer	leechers
+    16	32-bit integer	seeders
 
+    20 + 6 * n	32-bit integer	IP address
+    24 + 6 * n	16-bit integer	TCP port
+    20 + 6 * N
     """
 
     def __init__(self):
@@ -190,20 +193,21 @@ class UdpTrackerAnnounceOutput:
 
 
 """
-    Bittorrent messages
+Bittorrent messages
 """
 
 
 class Handshake(Message):
     """
-        Handshake = <pstrlen><pstr><reserved><info_hash><peer_id>
-            - pstrlen = length of pstr (1 byte)
-            - pstr = string identifier of the protocol: "BitTorrent protocol" (19 bytes)
-            - reserved = 8 reserved bytes indicating extensions to the protocol (8 bytes)
-            - info_hash = hash of the value of the 'info' key of the torrent file (20 bytes)
-            - peer_id = unique identifier of the Peer (20 bytes)
+    Handshake = <pstrlen><pstr><reserved><info_hash><peer_id>
 
-        Total length = payload length = 49 + len(pstr) = 68 bytes (for BitTorrent v1)
+    - pstrlen = length of pstr (1 byte)
+    - pstr = string identifier of the protocol: "BitTorrent protocol" (19 bytes)
+    - reserved = 8 reserved bytes indicating extensions to the protocol (8 bytes)
+    - info_hash = hash of the value of the 'info' key of the torrent file (20 bytes)
+    - peer_id = unique identifier of the Peer (20 bytes)
+
+    Total length = payload length = 49 + len(pstr) = 68 bytes (for BitTorrent v1)
     """
     payload_length = 68
     total_length = payload_length
@@ -218,19 +222,21 @@ class Handshake(Message):
 
     def to_bytes(self):
         reserved = b'\x00' * 8
-        handshake = pack(">B{}s8s20s20s".format(HANDSHAKE_PSTR_LEN),
-                         HANDSHAKE_PSTR_LEN,
-                         HANDSHAKE_PSTR_V1,
-                         reserved,
-                         self.info_hash,
-                         self.peer_id)
+        handshake = pack(
+            ">B{}s8s20s20s".format(HANDSHAKE_PSTR_LEN),
+            HANDSHAKE_PSTR_LEN,
+            HANDSHAKE_PSTR_V1,
+            reserved,
+            self.info_hash,
+            self.peer_id
+        )
 
         return handshake
 
     @classmethod
     def from_bytes(cls, payload):
         pstrlen, = unpack(">B", payload[:1])
-        pstr, reserved, info_hash, peer_id = unpack(">{}s8s20s20s".format(pstrlen), payload[1:cls.total_length])
+        pstr, _, info_hash, peer_id = unpack(">{}s8s20s20s".format(pstrlen), payload[1:cls.total_length])
 
         if pstr != HANDSHAKE_PSTR_V1:
             raise ValueError("Invalid string identifier of the protocol")
@@ -241,7 +247,8 @@ class Handshake(Message):
 class KeepAlive(Message):
     """
         KEEP_ALIVE = <length>
-            - payload length = 0 (4 bytes)
+
+        - payload length = 0 (4 bytes)
     """
     payload_length = 0
     total_length = 4
@@ -264,9 +271,10 @@ class KeepAlive(Message):
 
 class Choke(Message):
     """
-        CHOKE = <length><message_id>
-            - payload length = 1 (4 bytes)
-            - message id = 0 (1 byte)
+    CHOKE = <length><message_id>
+
+    - payload length = 1 (4 bytes)
+    - message id = 0 (1 byte)
     """
     message_id = 0
     chokes_me = True
@@ -282,7 +290,7 @@ class Choke(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
+        _, message_id = unpack(">IB", payload[:cls.total_length])
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Choke message")
 
@@ -291,9 +299,10 @@ class Choke(Message):
 
 class UnChoke(Message):
     """
-        UnChoke = <length><message_id>
-            - payload length = 1 (4 bytes)
-            - message id = 1 (1 byte)
+    UnChoke = <length><message_id>
+
+    - payload length = 1 (4 bytes)
+    - message id = 1 (1 byte)
     """
     message_id = 1
     chokes_me = False
@@ -309,7 +318,7 @@ class UnChoke(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
+        _, message_id = unpack(">IB", payload[:cls.total_length])
 
         if message_id != cls.message_id:
             raise WrongMessageException("Not an UnChoke message")
@@ -319,9 +328,10 @@ class UnChoke(Message):
 
 class Interested(Message):
     """
-        INTERESTED = <length><message_id>
-            - payload length = 1 (4 bytes)
-            - message id = 2 (1 byte)
+    INTERESTED = <length><message_id>
+
+    - payload length = 1 (4 bytes)
+    - message id = 2 (1 byte)
     """
     message_id = 2
     interested = True
@@ -337,7 +347,7 @@ class Interested(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
+        _, message_id = unpack(">IB", payload[:cls.total_length])
 
         if message_id != cls.message_id:
             raise WrongMessageException("Not an Interested message")
@@ -347,9 +357,10 @@ class Interested(Message):
 
 class NotInterested(Message):
     """
-        NOT INTERESTED = <length><message_id>
-            - payload length = 1 (4 bytes)
-            - message id = 3 (1 byte)
+    NOT INTERESTED = <length><message_id>
+
+    - payload length = 1 (4 bytes)
+    - message id = 3 (1 byte)
     """
     message_id = 3
     interested = False
@@ -365,7 +376,7 @@ class NotInterested(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id = unpack(">IB", payload[:cls.total_length])
+        _, message_id = unpack(">IB", payload[:cls.total_length])
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Non Interested message")
 
@@ -374,10 +385,11 @@ class NotInterested(Message):
 
 class Have(Message):
     """
-        HAVE = <length><message_id><piece_index>
-            - payload length = 5 (4 bytes)
-            - message_id = 4 (1 byte)
-            - piece_index = zero based index of the piece (4 bytes)
+    HAVE = <length><message_id><piece_index>
+
+    - payload length = 5 (4 bytes)
+    - message_id = 4 (1 byte)
+    - piece_index = zero based index of the piece (4 bytes)
     """
     message_id = 4
 
@@ -393,7 +405,7 @@ class Have(Message):
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id, piece_index = unpack(">IBI", payload[:cls.total_length])
+        _, message_id, piece_index = unpack(">IBI", payload[:cls.total_length])
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Have message")
 
@@ -402,10 +414,11 @@ class Have(Message):
 
 class BitField(Message):
     """
-        BITFIELD = <length><message id><bitfield>
-            - payload length = 1 + bitfield_size (4 bytes)
-            - message id = 5 (1 byte)
-            - bitfield = bitfield representing downloaded pieces (bitfield_size bytes)
+    BITFIELD = <length><message id><bitfield>
+
+    - payload length = 1 + bitfield_size (4 bytes)
+    - message id = 5 (1 byte)
+    - bitfield = bitfield representing downloaded pieces (bitfield_size bytes)
     """
     message_id = 5
 
@@ -444,12 +457,13 @@ class BitField(Message):
 
 class Request(Message):
     """
-        REQUEST = <length><message id><piece index><block offset><block length>
-            - payload length = 13 (4 bytes)
-            - message id = 6 (1 byte)
-            - piece index = zero based piece index (4 bytes)
-            - block offset = zero based of the requested block (4 bytes)
-            - block length = length of the requested block (4 bytes)
+    REQUEST = <length><message id><piece index><block offset><block length>
+
+    - payload length = 13 (4 bytes)
+    - message id = 6 (1 byte)
+    - piece index = zero based piece index (4 bytes)
+    - block offset = zero based of the requested block (4 bytes)
+    - block length = length of the requested block (4 bytes)
     """
     message_id = 6
 
@@ -464,17 +478,21 @@ class Request(Message):
         self.block_length = block_length
 
     def to_bytes(self):
-        return pack(">IBIII",
-                    self.payload_length,
-                    self.message_id,
-                    self.piece_index,
-                    self.block_offset,
-                    self.block_length)
+        return pack(
+            ">IBIII",
+            self.payload_length,
+            self.message_id,
+            self.piece_index,
+            self.block_offset,
+            self.block_length
+        )
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id, piece_index, block_offset, block_length = unpack(">IBIII",
-                                                                                     payload[:cls.total_length])
+        _, message_id, piece_index, block_offset, block_length = unpack(
+            ">IBIII",
+            payload[:cls.total_length]
+        )
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Request message")
 
@@ -483,12 +501,13 @@ class Request(Message):
 
 class Piece(Message):
     """
-        PIECE = <length><message id><piece index><block offset><block>
-        - length = 9 + block length (4 bytes)
-        - message id = 7 (1 byte)
-        - piece index =  zero based piece index (4 bytes)
-        - block offset = zero based of the requested block (4 bytes)
-        - block = block as a bytestring or bytearray (block_length bytes)
+    PIECE = <length><message id><piece index><block offset><block>
+
+    - length = 9 + block length (4 bytes)
+    - message id = 7 (1 byte)
+    - piece index =  zero based piece index (4 bytes)
+    - block offset = zero based of the requested block (4 bytes)
+    - block = block as a bytestring or bytearray (block_length bytes)
     """
     message_id = 7
 
@@ -507,18 +526,22 @@ class Piece(Message):
         self.total_length = 4 + self.payload_length
 
     def to_bytes(self):
-        return pack(">IBII{}s".format(self.block_length),
-                    self.payload_length,
-                    self.message_id,
-                    self.piece_index,
-                    self.block_offset,
-                    self.block)
+        return pack(
+            ">IBII{}s".format(self.block_length),
+            self.payload_length,
+            self.message_id,
+            self.piece_index,
+            self.block_offset,
+            self.block
+        )
 
     @classmethod
     def from_bytes(cls, payload):
         block_length = len(payload) - 13
-        payload_length, message_id, piece_index, block_offset, block = unpack(">IBII{}s".format(block_length),
-                                                                              payload[:13 + block_length])
+        _, message_id, piece_index, block_offset, block = unpack(
+            ">IBII{}s".format(block_length),
+            payload[:13 + block_length]
+        )
 
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Piece message")
@@ -527,12 +550,15 @@ class Piece(Message):
 
 
 class Cancel(Message):
-    """CANCEL = <length><message id><piece index><block offset><block length>
-        - length = 13 (4 bytes)
-        - message id = 8 (1 byte)
-        - piece index = zero based piece index (4 bytes)
-        - block offset = zero based of the requested block (4 bytes)
-        - block length = length of the requested block (4 bytes)"""
+    """
+    CANCEL = <length><message id><piece index><block offset><block length>
+
+    - length = 13 (4 bytes)
+    - message id = 8 (1 byte)
+    - piece index = zero based piece index (4 bytes)
+    - block offset = zero based of the requested block (4 bytes)
+    - block length = length of the requested block (4 bytes)
+    """
     message_id = 8
 
     payload_length = 13
@@ -546,17 +572,22 @@ class Cancel(Message):
         self.block_length = block_length
 
     def to_bytes(self):
-        return pack(">IBIII",
-                    self.payload_length,
-                    self.message_id,
-                    self.piece_index,
-                    self.block_offset,
-                    self.block_length)
+        return pack(
+            ">IBIII",
+            self.payload_length,
+            self.message_id,
+            self.piece_index,
+            self.block_offset,
+            self.block_length
+        )
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id, piece_index, block_offset, block_length = unpack(">IBIII",
-                                                                                     payload[:cls.total_length])
+        _, message_id, piece_index, block_offset, block_length = unpack(
+            ">IBIII",
+            payload[:cls.total_length]
+        )
+
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Cancel message")
 
@@ -565,10 +596,11 @@ class Cancel(Message):
 
 class Port(Message):
     """
-        PORT = <length><message id><port number>
-            - length = 5 (4 bytes)
-            - message id = 9 (1 byte)
-            - port number = listen_port (4 bytes)
+    PORT = <length><message id><port number>
+
+    - length = 5 (4 bytes)
+    - message id = 9 (1 byte)
+    - port number = listen_port (4 bytes)
     """
     message_id = 9
 
@@ -581,14 +613,16 @@ class Port(Message):
         self.listen_port = listen_port
 
     def to_bytes(self):
-        return pack(">IBI",
-                    self.payload_length,
-                    self.message_id,
-                    self.listen_port)
+        return pack(
+            ">IBI",
+            self.payload_length,
+            self.message_id,
+            self.listen_port
+        )
 
     @classmethod
     def from_bytes(cls, payload):
-        payload_length, message_id, listen_port = unpack(">IBI", payload[:cls.total_length])
+        _, message_id, listen_port = unpack(">IBI", payload[:cls.total_length])
 
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Port message")
