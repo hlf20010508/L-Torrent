@@ -9,6 +9,7 @@ A pure python torrent client based on PyTorrent
 - Connect to peers with multiple thread.
 - Support custom storage.
 - Support file selection.
+- Support running as a thread.
 
 ## Todo
 - Download more than one torrent at a time.
@@ -49,7 +50,7 @@ client = Client(
     torrent_path=torrent_path,
     timeout=timeout,
 )
-client.start()
+client.run()
 ```
 
 ### Magnet Link
@@ -65,7 +66,7 @@ client = Client(
     magnet_link=magnet_link,
     timeout=timeout,
 )
-client.start()
+client.run()
 ```
 
 ### Custom Storage
@@ -110,6 +111,22 @@ client = Client(
     magnet_link=magnet_link,
     timeout=timeout,
     custom_storage=custom_storage
+)
+client.run()
+```
+
+### Run as a Thread
+```py
+from ltorrent.client import Client
+
+magnet_link = "your-magnet-link"
+port = 8080
+timeout = 1
+
+client = Client(
+    port,
+    magnet_link=magnet_link,
+    timeout=timeout,
 )
 client.start()
 ```

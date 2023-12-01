@@ -10,4 +10,4 @@ if __name__ == '__main__':
         magnet_link=magnet_link,
         timeout=timeout,
     )
-    client.start()
+    client.run()

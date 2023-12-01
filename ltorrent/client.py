@@ -2,30 +2,45 @@ __author__ = 'alexisgallepe, L-ING'
 
 import time
 import os
+from threading import Thread
 from ltorrent.peers_manager import PeersPool, PeersScraper, PeersManager
 from ltorrent.pieces_manager import PiecesManager
 from ltorrent.torrent import Torrent
 from ltorrent.message import Request
 
 
-class Client(object):
+class Client(Thread):
     last_log_line = ""
 
     def __init__(self, port, torrent_path='', magnet_link='', timeout=1, custom_storage=None):
-        if torrent_path:
-            self.torrent = Torrent(custom_storage).load_from_path(torrent_path)
-        if magnet_link:
-            self.torrent = Torrent(custom_storage).load_from_magnet(magnet_link)
+        Thread.__init__(self)
+        self.port = port
+        self.torrent_path = torrent_path
+        self.magnet_link = magnet_link
+        self.timeout = timeout
+        self.custom_storage = custom_storage
 
-        self.peers_pool = PeersPool()
-        self.peers_scraper = PeersScraper(self.torrent, self.peers_pool, port, timeout=timeout)
-        self.pieces_manager = PiecesManager(self.torrent, custom_storage)
-        self.peers_manager = PeersManager(self.torrent, self.pieces_manager, self.peers_pool)
+        self.torrent = {}
+        self.peers_pool = None
+        self.peers_scraper = None
+        self.pieces_manager = None
+        self.peers_manager = None
 
         self.last_update = 0
         self.retries = 0
 
-    def start(self):
+    def run(self):
+        if self.torrent_path:
+            self.torrent = Torrent(self.custom_storage).load_from_path(self.torrent_path)
+        if self.magnet_link:
+            self.torrent = Torrent(self.custom_storage).load_from_magnet(self.magnet_link)
+        
+        self.peers_pool = PeersPool()
+
+        self.peers_scraper = PeersScraper(self.torrent, self.peers_pool, self.port, timeout=self.timeout)
+        self.pieces_manager = PiecesManager(self.torrent, self.custom_storage)
+        self.peers_manager = PeersManager(self.torrent, self.pieces_manager, self.peers_pool)
+
         self.peers_scraper.start()
         self.peers_manager.start()
 
