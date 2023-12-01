@@ -50,9 +50,11 @@ timeout = 1
 
 client = Client(
     port=port,
-    torrent_path=torrent_path,
     timeout=timeout,
 )
+
+client.load(torrent_path=torrent_path)
+client.select_file()
 client.run()
 ```
 
@@ -66,9 +68,11 @@ timeout = 1
 
 client = Client(
     port=port,
-    magnet_link=magnet_link,
     timeout=timeout,
 )
+
+client.load(magnet_link=magnet_link)
+client.select_file()
 client.run()
 ```
 
@@ -111,10 +115,12 @@ custom_storage = MyStorage()
 
 client = Client(
     port=port,
-    magnet_link=magnet_link,
     timeout=timeout,
     custom_storage=custom_storage
 )
+
+client.load(magnet_link=magnet_link)
+client.select_file()
 client.run()
 ```
 
@@ -128,8 +134,10 @@ timeout = 1
 
 client = Client(
     port=port,
-    magnet_link=magnet_link,
     timeout=timeout,
 )
+
+client.load(magnet_link=magnet_link)
+client.select_file()
 client.start()
 ```

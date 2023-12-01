@@ -21,11 +21,13 @@ if __name__ == '__main__':
     port = 8080
     timeout = 1
     logger = MyLogger()
-
+    
     client = Client(
         port=port,
-        magnet_link=magnet_link,
         timeout=timeout,
         stdout=logger
     )
-    client.start()
+
+    client.load(magnet_link=magnet_link)
+    client.select_file()
+    client.run()

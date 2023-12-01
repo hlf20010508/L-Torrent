@@ -59,8 +59,10 @@ if __name__ == '__main__':
 
     client = Client(
         port=port,
-        magnet_link=magnet_link,
         timeout=timeout,
         custom_storage=custom_storage
     )
-    client.start()
+
+    client.load(magnet_link=magnet_link)
+    client.select_file()
+    client.run()

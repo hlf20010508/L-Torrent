@@ -9,7 +9,7 @@ class ExitSelectionException(Exception):
     pass
 
 class PiecesManager(object):
-    def __init__(self, torrent, custom_storage=None, stdout=None, stdin=input):
+    def __init__(self, torrent, selection, custom_storage=None, stdout=None):
         self.torrent = torrent
         self.number_of_pieces = int(torrent.number_of_pieces)
         self.bitfield = bitstring.BitArray(self.number_of_pieces)
@@ -18,9 +18,8 @@ class PiecesManager(object):
             self.stdout = stdout
         else:
             self.stdout = Logger()
-        self.stdin = stdin
         self.pieces = self._generate_pieces()
-        self.selection = self.select_file()
+        self.selection = selection
         self.files = self._load_files()
         self.number_of_active_pieces = self.get_active_pieces_num()
         self.complete_pieces = 0
@@ -33,29 +32,6 @@ class PiecesManager(object):
         # events
         pub.subscribe(self.receive_block_piece, 'PiecesManager.Piece')
         pub.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
-
-    def select_file(self):
-        output = '0. Exit\n1. All\n'
-        for i, file_info in enumerate(self.torrent.file_names):
-            output += '%d. \"%s\" %.2fMB\n' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024)
-        self.stdout.MUST(output.strip())
-        selection = self.stdin('Select files: ').split()
-        result = []
-        for i in selection:
-            # range
-            rg = [int(item) for item in i.split('-')]
-            if len(rg) > 1:
-                rg = range(rg[0], rg[1] + 1)
-            result.extend(rg)
-
-        if max(result) > len(self.torrent.file_names) + 1:
-            raise Exception('Wrong file number')
-        elif 0 in result:
-            raise ExitSelectionException
-        elif 1 in result:
-            return range(0, len(self.torrent.file_names))
-        else:
-            return [item - 2 for item in result]
 
     def get_active_pieces_num(self):
         count = 0

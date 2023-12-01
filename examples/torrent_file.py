@@ -10,7 +10,9 @@ if __name__ == '__main__':
 
     client = Client(
         port=port,
-        torrent_path=torrent_path,
         timeout=timeout,
     )
-    client.start()
+    
+    client.load(torrent_path=torrent_path)
+    client.select_file()
+    client.run()

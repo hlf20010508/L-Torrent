@@ -13,18 +13,19 @@ class Client(Thread):
     last_percentage_completed = -1
     last_log_line = ""
 
-    def __init__(self, port, torrent_path='', magnet_link='', timeout=1, custom_storage=None, stdout=None, stdin=input):
+    def __init__(self, port, timeout=1, custom_storage=None, stdout=None):
         Thread.__init__(self)
         self.port = port
-        self.torrent_path = torrent_path
-        self.magnet_link = magnet_link
         self.timeout = timeout
         self.custom_storage = custom_storage
-        self.stdout = stdout
-        self.stdin = stdin
+        if stdout:
+            self.stdout = stdout
+        else:
+            self.stdout = Logger()
         self.is_active = True
 
         self.torrent = {}
+        self.selection = []
         self.peers_pool = None
         self.peers_scraper = None
         self.pieces_manager = None
@@ -33,18 +34,45 @@ class Client(Thread):
         self.last_update = 0
         self.retries = 0
 
+    def load(self, torrent_path='', magnet_link=''):
+        if torrent_path:
+            self.torrent = Torrent(custom_storage=self.custom_storage).load_from_path(path=torrent_path)
+        elif magnet_link:
+            self.torrent = Torrent(custom_storage=self.custom_storage).load_from_magnet(magnet_link=magnet_link)
+        else:
+            raise Exception("Neither torrent path nor magnet link is provided.")
 
+    def select_file(self, stdin=input):
+        if not self.torrent:
+            raise Exception("You haven't load torrent file or magnet link.")
+
+        output = '0. Exit\n1. All\n'
+        for i, file_info in enumerate(self.torrent.file_names):
+            output += '%d. \"%s\" %.2fMB\n' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024)
+        self.stdout.MUST(output.strip())
+        selection = stdin('Select files: ').split()
+        result = []
+        for i in selection:
+            # range
+            rg = [int(item) for item in i.split('-')]
+            if len(rg) > 1:
+                rg = range(rg[0], rg[1] + 1)
+            result.extend(rg)
+
+        if max(result) > len(self.torrent.file_names) + 1:
+            raise Exception('Wrong file number')
+        elif 0 in result:
+            raise ExitSelectionException
+        elif 1 in result:
+            self.selection = range(0, len(self.torrent.file_names))
+        else:
+            self.selection = [item - 2 for item in result]
 
     def run(self):
         try:
-            if not self.stdout:
-                self.stdout = Logger()
+            if not self.selection:
+                raise Exception("You haven't select file(s).")
 
-            if self.torrent_path:
-                self.torrent = Torrent(custom_storage=self.custom_storage).load_from_path(path=self.torrent_path)
-            if self.magnet_link:
-                self.torrent = Torrent(custom_storage=self.custom_storage).load_from_magnet(magnet_link=self.magnet_link)
-            
             self.peers_pool = PeersPool()
 
             self.peers_scraper = PeersScraper(
@@ -56,9 +84,9 @@ class Client(Thread):
             )
             self.pieces_manager = PiecesManager(
                 torrent=self.torrent,
+                selection=self.selection,
                 custom_storage=self.custom_storage,
                 stdout=self.stdout,
-                stdin=self.stdin
             )
             self.peers_manager = PeersManager(
                 torrent=self.torrent,
@@ -120,8 +148,6 @@ class Client(Thread):
             else:
                 self._exit_threads()
 
-        except ExitSelectionException:
-            self.stdout.INFO("File selection cancelled.")
         except Exception as e:
             try:
                 self._exit_threads()
