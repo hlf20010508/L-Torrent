@@ -5,6 +5,7 @@ pytorrent/
 
 # Torrent files
 *.torrent
+!example.torrent
 
 # IntelliJ project files
 .idea

@@ -3,14 +3,22 @@ __author__ = 'alexisgallepe, L-ING'
 import bitstring
 from pubsub import pub
 from ltorrent.piece import Piece
+from ltorrent.log import Logger
 
+class ExitSelectionException(Exception):
+    pass
 
 class PiecesManager(object):
-    def __init__(self, torrent, custom_storage=None):
+    def __init__(self, torrent, custom_storage=None, stdout=None, stdin=input):
         self.torrent = torrent
         self.number_of_pieces = int(torrent.number_of_pieces)
         self.bitfield = bitstring.BitArray(self.number_of_pieces)
         self.custom_storage = custom_storage
+        if stdout:
+            self.stdout = stdout
+        else:
+            self.stdout = Logger()
+        self.stdin = stdin
         self.pieces = self._generate_pieces()
         self.selection = self.select_file()
         self.files = self._load_files()
@@ -27,11 +35,11 @@ class PiecesManager(object):
         pub.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
 
     def select_file(self):
-        print('0. Exit')
-        print('1. All')
+        output = '0. Exit\n1. All\n'
         for i, file_info in enumerate(self.torrent.file_names):
-            print('%d. \"%s\" %.2fMB' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024))
-        selection = input('Select files: ').split()
+            output += '%d. \"%s\" %.2fMB\n' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024)
+        self.stdout.MUST(output.strip())
+        selection = self.stdin('Select files: ').split()
         result = []
         for i in selection:
             # range
@@ -43,7 +51,7 @@ class PiecesManager(object):
         if max(result) > len(self.torrent.file_names) + 1:
             raise Exception('Wrong file number')
         elif 0 in result:
-            exit(0)
+            raise ExitSelectionException
         elif 1 in result:
             return range(0, len(self.torrent.file_names))
         else:
@@ -66,7 +74,7 @@ class PiecesManager(object):
         if self.pieces[piece_index].is_full:
             return
 
-        self.pieces[piece_index].set_block(piece_offset, piece_data)
+        self.pieces[piece_index].set_block(offset=piece_offset, data=piece_data)
 
         if self.pieces[piece_index].are_all_blocks_full():
             if self.pieces[piece_index].set_to_full():
@@ -77,7 +85,7 @@ class PiecesManager(object):
         for piece in self.pieces:
             if piece_index == piece.piece_index:
                 if piece.is_full:
-                    return piece.get_block(block_offset, block_length)
+                    return piece.get_block(block_offset=block_offset, block_length=block_length)
                 else:
                     break
 
@@ -99,10 +107,22 @@ class PiecesManager(object):
             end = start + 20
 
             if i != last_piece:
-                pieces.append(Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end], self.custom_storage))
+                pieces.append(Piece(
+                    piece_index=i,
+                    piece_size=self.torrent.piece_length,
+                    piece_hash=self.torrent.pieces[start:end],
+                    custom_storage=self.custom_storage,
+                    stdout=self.stdout
+                ))
             else:
                 piece_length = self.torrent.total_length - (self.number_of_pieces - 1) * self.torrent.piece_length
-                pieces.append(Piece(i, piece_length, self.torrent.pieces[start:end], self.custom_storage))
+                pieces.append(Piece(
+                    piece_index=i,
+                    piece_size=piece_length,
+                    piece_hash=self.torrent.pieces[start:end],
+                    custom_storage=self.custom_storage,
+                    stdout=self.stdout
+                ))
 
         return pieces
 

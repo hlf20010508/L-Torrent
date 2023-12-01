@@ -42,24 +42,24 @@ class Torrent(object):
     def load_from_magnet(self, magnet_link):
         server_url = "https://magnet2torrent.com/upload/"
         headers={'User-Agent': 'Mozilla/5.0 (Platform; Security; OS-or-CPU; Localization; rv:1.4) Gecko/20030624 Netscape/7.1 (ax)'}
-        response = requests.post(server_url, headers=headers, data={'magnet': magnet_link})
+        response = requests.post(url=server_url, headers=headers, data={'magnet': magnet_link})
         contents = bdecode(response.content)
-        return self.load(contents)
+        return self.load(contents=contents)
     
     def load_from_path(self, path):
         with open(path, 'rb') as file:
             contents = bdecode(file)
-        return self.load(contents)
+        return self.load(contents=contents)
 
     def init_files(self):
         root = self.torrent_file['info']['name']
         if 'files' in self.torrent_file['info']:
             if not self.custom_storage and not os.path.exists(root):
-                os.mkdir(root, 0o0766 )
+                os.mkdir(path=root, mode=0o0766 )
             for file in self.torrent_file['info']['files']:
                 path_file = os.path.join(root, *file["path"])
-                if not self.custom_storage and not os.path.exists(os.path.dirname(path_file)):
-                    os.makedirs(os.path.dirname(path_file))
+                if not self.custom_storage and not os.path.exists(path=os.path.dirname(path_file)):
+                    os.makedirs(name=os.path.dirname(path_file))
                 self.file_names.append({"path": path_file , "length": file["length"]})
                 self.total_length += file["length"]
         else:

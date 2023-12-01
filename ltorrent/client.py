@@ -1,24 +1,28 @@
 __author__ = 'alexisgallepe, L-ING'
 
 import time
-import os
 from threading import Thread
 from ltorrent.peers_manager import PeersPool, PeersScraper, PeersManager
-from ltorrent.pieces_manager import PiecesManager
+from ltorrent.pieces_manager import PiecesManager, ExitSelectionException
 from ltorrent.torrent import Torrent
 from ltorrent.message import Request
+from ltorrent.log import Logger
 
 
 class Client(Thread):
+    last_percentage_completed = -1
     last_log_line = ""
 
-    def __init__(self, port, torrent_path='', magnet_link='', timeout=1, custom_storage=None):
+    def __init__(self, port, torrent_path='', magnet_link='', timeout=1, custom_storage=None, stdout=None, stdin=input):
         Thread.__init__(self)
         self.port = port
         self.torrent_path = torrent_path
         self.magnet_link = magnet_link
         self.timeout = timeout
         self.custom_storage = custom_storage
+        self.stdout = stdout
+        self.stdin = stdin
+        self.is_active = True
 
         self.torrent = {}
         self.peers_pool = None
@@ -29,77 +33,135 @@ class Client(Thread):
         self.last_update = 0
         self.retries = 0
 
+
+
     def run(self):
-        if self.torrent_path:
-            self.torrent = Torrent(self.custom_storage).load_from_path(self.torrent_path)
-        if self.magnet_link:
-            self.torrent = Torrent(self.custom_storage).load_from_magnet(self.magnet_link)
-        
-        self.peers_pool = PeersPool()
+        try:
+            if not self.stdout:
+                self.stdout = Logger()
 
-        self.peers_scraper = PeersScraper(self.torrent, self.peers_pool, self.port, timeout=self.timeout)
-        self.pieces_manager = PiecesManager(self.torrent, self.custom_storage)
-        self.peers_manager = PeersManager(self.torrent, self.pieces_manager, self.peers_pool)
+            if self.torrent_path:
+                self.torrent = Torrent(custom_storage=self.custom_storage).load_from_path(path=self.torrent_path)
+            if self.magnet_link:
+                self.torrent = Torrent(custom_storage=self.custom_storage).load_from_magnet(magnet_link=self.magnet_link)
+            
+            self.peers_pool = PeersPool()
 
-        self.peers_scraper.start()
-        self.peers_manager.start()
+            self.peers_scraper = PeersScraper(
+                torrent=self.torrent,
+                peers_pool=self.peers_pool,
+                port=self.port,
+                timeout=self.timeout,
+                stdout=self.stdout
+            )
+            self.pieces_manager = PiecesManager(
+                torrent=self.torrent,
+                custom_storage=self.custom_storage,
+                stdout=self.stdout,
+                stdin=self.stdin
+            )
+            self.peers_manager = PeersManager(
+                torrent=self.torrent,
+                pieces_manager=self.pieces_manager,
+                peers_pool=self.peers_pool,
+                stdout=self.stdout
+            )
 
-        if len(self.peers_pool.connected_peers) < 1:
-            self._exit_threads()
+            self.peers_scraper.start()
+            self.peers_manager.start()
 
-        self.last_update = time.time()
+            if len(self.peers_pool.connected_peers) < 1:
+                self._exit_threads()
+                self.stdout.INFO('Peers not enough')
 
-        while not self.pieces_manager.all_pieces_completed():
-            if not self.peers_manager.has_unchoked_peers():
-                print("No unchocked peers")
-                time.sleep(1)
-                continue
+            self.last_update = time.time()
 
-            for piece in self.pieces_manager.pieces:
-                index = piece.piece_index
-
-                if not self.pieces_manager.pieces[index].is_active:
+            while not self.pieces_manager.all_pieces_completed() and self.is_active:
+                if not self.peers_manager.has_unchoked_peers():
+                    self.stdout.WARNING("No unchocked peers")
+                    time.sleep(1)
                     continue
 
-                if self.pieces_manager.pieces[index].is_full:
-                    continue
+                for piece in self.pieces_manager.pieces:
+                    index = piece.piece_index
 
-                peer = self.peers_manager.get_random_peer_having_piece(index)
-                if not peer:
-                    continue
+                    if not self.pieces_manager.pieces[index].is_active:
+                        continue
 
-                self.pieces_manager.pieces[index].update_block_status()
+                    if self.pieces_manager.pieces[index].is_full:
+                        continue
 
-                data = self.pieces_manager.pieces[index].get_empty_block()
-                if not data:
-                    continue
+                    peer = self.peers_manager.get_random_peer_having_piece(index=index)
+                    if not peer:
+                        continue
 
-                piece_index, block_offset, block_length = data
-                piece_data = Request(piece_index, block_offset, block_length).to_bytes()
-                peer.send_to_peer(piece_data)
+                    self.pieces_manager.pieces[index].update_block_status()
 
-            self.display_progression()
+                    data = self.pieces_manager.pieces[index].get_empty_block()
+                    if not data:
+                        continue
 
-            time.sleep(0.1)
+                    piece_index, block_offset, block_length = data
+                    piece_data = Request(
+                        piece_index=piece_index,
+                        block_offset=block_offset,
+                        block_length=block_length
+                    ).to_bytes()
+                    peer.send_to_peer(msg=piece_data)
 
-        self.display_progression()
+                self.display_progression()
 
-        print("File(s) downloaded successfully.")
+                time.sleep(0.1)
+            
+            if self.is_active:
+                self.display_progression()
+                self._exit_threads()
+                self.stdout.INFO("File(s) downloaded successfully.")
+            else:
+                self._exit_threads()
 
-        self._exit_threads()
+        except ExitSelectionException:
+            self.stdout.INFO("File selection cancelled.")
+        except Exception as e:
+            try:
+                self._exit_threads()
+            finally:
+                self.stdout.ERROR(e)
 
     def display_progression(self):
         now = time.time()
         if (now - self.last_update) > 60:
-            print("Timeout")
+            if self.retries > 3:
+                self._exit_threads()
+                self.stdout.INFO('Too many retries')
+                return
+
+            self.stdout.INFO("Timeout")
+
+            self.peers_manager.is_active = False
+
             for peer in self.peers_manager.peers_pool.connected_peers.values():
                 peer.socket.close()
             self.peers_pool = PeersPool()
+
             self.peers_scraper.start()
-            self.retries += 1
-            if self.retries > 3:
-                print('Too many retries')
+
+            self.peers_manager = PeersManager(
+                torrent=self.torrent,
+                pieces_manager=self.pieces_manager,
+                peers_pool=self.peers_pool,
+                stdout=self.stdout
+            )
+            
+            self.peers_manager.start()
+
+            if len(self.peers_pool.connected_peers) < 1:
                 self._exit_threads()
+                self.stdout.INFO('Peers not enough')
+                return
+            
+            self.retries += 1
+            
             self.last_update = time.time()
             return
 
@@ -114,14 +176,16 @@ class Client(Thread):
         )
 
         if current_log_line != self.last_log_line:
+            self.stdout.INFO(current_log_line)
+            self.last_log_line = current_log_line
+        
+        if percentage_completed != self.last_percentage_completed:
             self.last_update = now
-            print(current_log_line)
-
-        self.last_log_line = current_log_line
+            self.last_percentage_completed = percentage_completed
 
     def _exit_threads(self):
         self.peers_manager.is_active = False
-        os._exit(0)
+        self.is_active = False
 
 
 class CustomStorage:

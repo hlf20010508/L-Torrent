@@ -5,10 +5,11 @@ import math
 import time
 from pubsub import pub
 from ltorrent.block import Block, BLOCK_SIZE, State
+from ltorrent.log import Logger
 
 
 class Piece(object):
-    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, custom_storage=None):
+    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, custom_storage=None, stdout=None):
         self.piece_index: int = piece_index
         self.piece_size: int = piece_size
         self.piece_hash: str = piece_hash
@@ -19,6 +20,10 @@ class Piece(object):
         self.blocks: list[Block] = []
         self.custom_storage = custom_storage
         self.is_active = 0
+        if stdout:
+            self.stdout = stdout
+        else:
+            self.stdout = Logger()
 
         self._init_blocks()
 
@@ -47,8 +52,8 @@ class Piece(object):
 
             try:
                 f = open(path_file, 'rb')
-            except:
-                print("Can't read file %s" % path_file)
+            except Exception as e:
+                self.stdout.ERROR("Can't read file %s:" % path_file, e)
                 return
 
             f.seek(file_offset)
@@ -82,7 +87,7 @@ class Piece(object):
     def set_to_full(self):
         data = self._merge_blocks()
 
-        if not self._valid_blocks(data):
+        if not self._valid_blocks(piece_raw_data=data):
             self._init_blocks()
             return False
 
@@ -97,10 +102,11 @@ class Piece(object):
         return True
 
     def _init_blocks(self):
-        self.clear()
+        self.raw_data = b''
+        self.blocks = []
 
         if self.number_of_blocks > 1:
-            for i in range(self.number_of_blocks):
+            for _ in range(self.number_of_blocks):
                 self.blocks.append(Block())
 
             # Last block of last piece, the special block
@@ -114,6 +120,17 @@ class Piece(object):
         self.raw_data = b''
         self.blocks = []
 
+        if self.number_of_blocks > 1:
+            for _ in range(self.number_of_blocks):
+                self.blocks.append(Block(state=State.FULL))
+
+            # Last block of last piece, the special block
+            if (self.piece_size % BLOCK_SIZE) > 0:
+                self.blocks[self.number_of_blocks - 1].block_size = self.piece_size % BLOCK_SIZE
+
+        else:
+            self.blocks.append(Block(state=State.FULL, block_size=int(self.piece_size)))
+
     def _write_piece_on_disk(self):
         for file in self.files:
             path_file = file["path"]
@@ -125,8 +142,8 @@ class Piece(object):
                 f = open(path_file, 'r+b')  # Already existing file
             except IOError:
                 f = open(path_file, 'wb')  # New file
-            except:
-                print("Can't write to file")
+            except Exception as e:
+                self.stdout.ERROR("Can't write to file:", e)
                 return
 
             f.seek(file_offset)
@@ -147,6 +164,5 @@ class Piece(object):
         if hashed_piece_raw_data == self.piece_hash:
             return True
 
-        print("Error Piece Hash")
-        print("{} : {}".format(hashed_piece_raw_data, self.piece_hash))
+        self.stdout.WARNING("Error Piece Hash", "{} : {}".format(hashed_piece_raw_data, self.piece_hash))
         return False

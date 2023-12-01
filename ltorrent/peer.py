@@ -13,10 +13,11 @@ from ltorrent.message import (
     KeepAlive,
     MessageDispatcher
 )
+from ltorrent.log import Logger
 
 
 class Peer(object):
-    def __init__(self, number_of_pieces, ip, port=6881):
+    def __init__(self, number_of_pieces, ip, port=6881, stdout=None):
         self.last_call = 0.0
         self.has_handshaked = False
         self.healthy = False
@@ -25,6 +26,10 @@ class Peer(object):
         self.ip = ip
         self.port = port
         self.number_of_pieces = number_of_pieces
+        if stdout:
+            self.stdout = stdout
+        else:
+            self.stdout = Logger()
         self.bit_field = bitstring.BitArray(number_of_pieces)
         self.state = {
             'am_choking': True,
@@ -41,8 +46,18 @@ class Peer(object):
             self.socket = socket.create_connection((self.ip, self.port), timeout=timeout)
             self.socket.setblocking(False)
             self.healthy = True
-
-        except:
+        except socket.timeout:
+            self.stdout.WARNING("Connection timeout in Peer.")
+            return False
+        except ConnectionRefusedError:
+            self.stdout.WARNING("Connection refused in Peer.")
+            return False
+        except OSError as e:
+            # No route to host
+            self.stdout.WARNING(e)
+            return False
+        except Exception as e:
+            self.stdout.ERROR("Failed to connect to peer:", e)
             return False
 
         return True
@@ -51,9 +66,16 @@ class Peer(object):
         try:
             self.socket.send(msg)
             self.last_call = time.time()
+        except BrokenPipeError:
+            self.healthy = False
+            self.stdout.WARNING("Broken pipe. Sending message to a closed peer.")
+        except OSError as e:
+            # Socket closed in Peer
+            self.healthy = False
+            self.stdout.WARNING(e)
         except Exception as e:
             self.healthy = False
-            print("Failed to send to peer : %s" % e.__str__())
+            self.stdout.ERROR("Failed to send to peer:", e)
 
     def is_eligible(self):
         now = time.time()
@@ -81,54 +103,54 @@ class Peer(object):
         return self.state['am_interested']
 
     def handle_choke(self):
-        print('handle_choke - %s' % self.ip)
+        self.stdout.DEBUG('handle_choke - %s' % self.ip)
         self.state['peer_choking'] = True
 
     def handle_unchoke(self):
-        print('handle_unchoke - %s' % self.ip)
+        self.stdout.DEBUG('handle_unchoke - %s' % self.ip)
         self.state['peer_choking'] = False
 
     def handle_interested(self):
-        print('handle_interested - %s' % self.ip)
+        self.stdout.DEBUG('handle_interested - %s' % self.ip)
         self.state['peer_interested'] = True
 
         if self.am_choking():
             unchoke = UnChoke().to_bytes()
-            self.send_to_peer(unchoke)
+            self.send_to_peer(msg=unchoke)
 
     def handle_not_interested(self):
-        print('handle_not_interested - %s' % self.ip)
+        self.stdout.DEBUG('handle_not_interested - %s' % self.ip)
         self.state['peer_interested'] = False
 
     def handle_have(self, have):
         """
         :type have: message.Have
         """
-        print('handle_have - ip: %s - piece: %s' % (self.ip, have.piece_index))
+        self.stdout.DEBUG('handle_have - ip: %s - piece: %s' % (self.ip, have.piece_index))
         self.bit_field[have.piece_index] = True
 
         if self.is_choking() and not self.state['am_interested']:
             interested = Interested().to_bytes()
-            self.send_to_peer(interested)
+            self.send_to_peer(mgs=interested)
             self.state['am_interested'] = True
 
     def handle_bitfield(self, bitfield):
         """
         :type bitfield: message.BitField
         """
-        print('handle_bitfield - %s - %s' % (self.ip, bitfield.bitfield))
+        self.stdout.DEBUG('handle_bitfield - %s - %s' % (self.ip, bitfield.bitfield))
         self.bit_field = bitfield.bitfield
 
         if self.is_choking() and not self.state['am_interested']:
             interested = Interested().to_bytes()
-            self.send_to_peer(interested)
+            self.send_to_peer(msg=interested)
             self.state['am_interested'] = True
 
     def handle_request(self, request):
         """
         :type request: message.Request
         """
-        print('handle_request - %s' % self.ip)
+        self.stdout.DEBUG('handle_request - %s' % self.ip)
         if self.is_interested() and self.is_unchoked():
             pub.sendMessage('PeersManager.PeerRequestsPiece', request=request, peer=self)
 
@@ -139,33 +161,34 @@ class Peer(object):
         pub.sendMessage('PiecesManager.Piece', piece=(message.piece_index, message.block_offset, message.block))
 
     def handle_cancel(self):
-        print('handle_cancel - %s' % self.ip)
+        self.stdout.DEBUG('handle_cancel - %s' % self.ip)
 
     def handle_port_request(self):
-        print('handle_port_request - %s' % self.ip)
+        self.stdout.DEBUG('handle_port_request - %s' % self.ip)
 
     def _handle_handshake(self):
         try:
-            handshake_message = Handshake.from_bytes(self.read_buffer)
+            handshake_message = Handshake.from_bytes(payload=self.read_buffer)
             self.has_handshaked = True
             self.read_buffer = self.read_buffer[handshake_message.total_length:]
-            print('handle_handshake - %s' % self.ip)
+            self.stdout.DEBUG('handle_handshake - %s' % self.ip)
             return True
 
-        except:
-            print("First message should always be a handshake message")
+        except Exception as e:
+            self.stdout.ERROR("First message should always be a handshake message:", e)
             self.healthy = False
 
         return False
 
     def _handle_keep_alive(self):
         try:
-            keep_alive = KeepAlive.from_bytes(self.read_buffer)
-            print('handle_keep_alive - %s' % self.ip)
+            keep_alive = KeepAlive.from_bytes(payload=self.read_buffer)
+            self.stdout.DEBUG('handle_keep_alive - %s' % self.ip)
         except WrongMessageException:
+            # try to handle keep alive message in every loop
             return False
-        except:
-            print("Error KeepALive, (need at least 4 bytes : {})".format(len(self.read_buffer)))
+        except Exception as e:
+            self.stdout.ERROR("Error KeepALive, need at least 4 bytes, but got %d bytes:" % len(self.read_buffer), e)
             return False
 
         self.read_buffer = self.read_buffer[keep_alive.total_length:]
@@ -186,8 +209,8 @@ class Peer(object):
                 self.read_buffer = self.read_buffer[total_length:]
 
             try:
-                received_message = MessageDispatcher(payload).dispatch()
+                received_message = MessageDispatcher(payload=payload, stdout=self.stdout).dispatch()
                 if received_message:
                     yield received_message
             except WrongMessageException as e:
-                print(e.__str__())
+                self.stdout.ERROR("Wrong message received in peer.Peer.get_messages:", e)

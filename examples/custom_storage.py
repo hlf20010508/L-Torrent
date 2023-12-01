@@ -58,7 +58,7 @@ if __name__ == '__main__':
         os.mkdir('downloads')
 
     client = Client(
-        port,
+        port=port,
         magnet_link=magnet_link,
         timeout=timeout,
         custom_storage=custom_storage

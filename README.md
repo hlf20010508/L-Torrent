@@ -4,12 +4,15 @@ A pure python torrent client based on PyTorrent
 
 - Pure Python client.
 - Based on [gallexis/PyTorrent](https://github.com/gallexis/PyTorrent).
-- Support torrent file and magnet link.
+- Support [torrent file](#torrent-file) and [magnet link](#magnet-link).
 - Scrape `udp` or `http` trackers with multiple thread.
 - Connect to peers with multiple thread.
-- Support custom storage.
+- Support [custom storage](#custom-storage).
 - Support file selection.
-- Support running as a thread.
+- Support custom [stdout](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdout.py) and [stdin](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdin.py).
+- Support [running as a thread](#run-as-a-thread).
+
+See examples [here](https://github.com/hlf20010508/LTorrent/tree/master/examples).
 
 ## Todo
 - Download more than one torrent at a time.
@@ -46,7 +49,7 @@ port = 8080
 timeout = 1
 
 client = Client(
-    port,
+    port=port,
     torrent_path=torrent_path,
     timeout=timeout,
 )
@@ -62,7 +65,7 @@ port = 8080
 timeout = 1
 
 client = Client(
-    port,
+    port=port,
     magnet_link=magnet_link,
     timeout=timeout,
 )
@@ -70,7 +73,7 @@ client.run()
 ```
 
 ### Custom Storage
-See full example in `examples/custom_storage.py`.
+See full example in [examples/custom_storage.py](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_storage.py).
 ```py
 from ltorrent.client import Client, CustomStorage
 
@@ -107,7 +110,7 @@ timeout = 1
 custom_storage = MyStorage()
 
 client = Client(
-    port,
+    port=port,
     magnet_link=magnet_link,
     timeout=timeout,
     custom_storage=custom_storage
@@ -124,7 +127,7 @@ port = 8080
 timeout = 1
 
 client = Client(
-    port,
+    port=port,
     magnet_link=magnet_link,
     timeout=timeout,
 )

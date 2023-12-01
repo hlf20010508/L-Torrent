@@ -2,8 +2,10 @@ __author__ = 'alexisgallepe, L-ING'
 
 import random
 import socket
+import struct
 from struct import pack, unpack
 import bitstring
+from ltorrent.log import Logger
 
 HANDSHAKE_PSTR_V1 = b"BitTorrent protocol"
 HANDSHAKE_PSTR_LEN = len(HANDSHAKE_PSTR_V1)
@@ -16,14 +18,21 @@ class WrongMessageException(Exception):
 
 class MessageDispatcher:
 
-    def __init__(self, payload):
+    def __init__(self, payload, stdout=None):
         self.payload = payload
+        if stdout:
+            self.stdout = stdout
+        else:
+            self.stdout = Logger()
 
     def dispatch(self):
         try:
             _, message_id, = unpack(">IB", self.payload[:5])
+        except struct.error:
+            self.stdout.WARNING("Received keep alive message.")
+            return None
         except Exception as e:
-            print("Error when unpacking message : %s: %s" % (e.__str__(), self.payload))
+            self.stdout.ERROR("Error when unpacking message : %s: %s" % (e, self.payload))
             return None
 
         map_id_to_message = {
@@ -42,7 +51,7 @@ class MessageDispatcher:
         if message_id not in list(map_id_to_message.keys()):
             raise WrongMessageException("Wrong message id")
 
-        return map_id_to_message[message_id].from_bytes(self.payload)
+        return map_id_to_message[message_id].from_bytes(payload=self.payload)
 
 
 class Message:
@@ -241,7 +250,7 @@ class Handshake(Message):
         if pstr != HANDSHAKE_PSTR_V1:
             raise ValueError("Invalid string identifier of the protocol")
 
-        return Handshake(info_hash, peer_id)
+        return Handshake(info_hash=info_hash, peer_id=peer_id)
 
 
 class KeepAlive(Message):
@@ -409,7 +418,7 @@ class Have(Message):
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Have message")
 
-        return Have(piece_index)
+        return Have(piece_index=piece_index)
 
 
 class BitField(Message):
@@ -436,10 +445,12 @@ class BitField(Message):
         self.total_length = 4 + self.payload_length
 
     def to_bytes(self):
-        return pack(">IB{}s".format(self.bitfield_length),
-                    self.payload_length,
-                    self.message_id,
-                    self.bitfield_as_bytes)
+        return pack(
+            ">IB{}s".format(self.bitfield_length),
+            self.payload_length,
+            self.message_id,
+            self.bitfield_as_bytes
+        )
 
     @classmethod
     def from_bytes(cls, payload):
@@ -452,7 +463,7 @@ class BitField(Message):
         raw_bitfield, = unpack(">{}s".format(bitfield_length), payload[5:5 + bitfield_length])
         bitfield = bitstring.BitArray(bytes=bytes(raw_bitfield))
 
-        return BitField(bitfield)
+        return BitField(bitfield=bitfield)
 
 
 class Request(Message):
@@ -496,7 +507,11 @@ class Request(Message):
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Request message")
 
-        return Request(piece_index, block_offset, block_length)
+        return Request(
+            piece_index=piece_index,
+            block_offset=block_offset,
+            block_length=block_length
+        )
 
 
 class Piece(Message):
@@ -546,7 +561,12 @@ class Piece(Message):
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Piece message")
 
-        return Piece(block_length, piece_index, block_offset, block)
+        return Piece(
+            block_length=block_length,
+            piece_index=piece_index,
+            block_offset=block_offset,
+            block=block
+        )
 
 
 class Cancel(Message):
@@ -591,7 +611,11 @@ class Cancel(Message):
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Cancel message")
 
-        return Cancel(piece_index, block_offset, block_length)
+        return Cancel(
+            piece_index=piece_index,
+            block_offset=block_offset,
+            block_length=block_length
+        )
 
 
 class Port(Message):
@@ -627,4 +651,4 @@ class Port(Message):
         if message_id != cls.message_id:
             raise WrongMessageException("Not a Port message")
 
-        return Port(listen_port)
+        return Port(listen_port=listen_port)
