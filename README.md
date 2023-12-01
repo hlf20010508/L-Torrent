@@ -28,9 +28,9 @@ Range supported, linked by `-`, eg: `4 6-10 12 14-20`.
 ## Installation
 ```sh
 # using pip
-pip install git+https://github.com/hlf20010508/LTorrent.git
+pip install git+https://github.com/hlf20010508/LTorrent.git@1.2.0
 # using pipenv
-pipenv install git+https://github.com/hlf20010508/LTorrent.git#egg=LTorrent
+pipenv install git+https://github.com/hlf20010508/LTorrent.git@1.2.0#egg=LTorrent
 ```
 
 ## Start
