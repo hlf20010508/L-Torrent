@@ -30,7 +30,7 @@ class Logger(LoggerBase):
     
     def ERROR(self, *args):
         buffer = StringIO()
-        print_exc(limit=1, file=buffer)
+        print_exc(file=buffer)
         print("ERROR:", *args)
         print(buffer.getvalue())
     
