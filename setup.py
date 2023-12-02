@@ -25,7 +25,7 @@ setup(
     long_description_content_type="text/markdown",
     package_dir={"ltorrent": "ltorrent"},
     packages=["ltorrent"],
-    install_requires=["bcoding", "bitstring", "pypubsub", "requests", "pubsub", "ipaddress"],
+    install_requires=["bcoding", "bitstring", "pypubsub", "requests", "ipaddress", "aiohttp"],
     license="Unlicense license",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
