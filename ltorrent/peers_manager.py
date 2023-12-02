@@ -455,17 +455,9 @@ class PeersManager(Thread):
             except socket.timeout:
                 self.stdout.WARNING("Read from socket timeout in PeersManager")
                 break
-            except BlockingIOError:
+            except BlockingIOError as e:
                 # Resource temporarily unavailable
-                break
-            except ConnectionResetError:
-                self.stdout.WARNING("Connection reset by peer in PeersManager")
-                break
-            except OSError:
-                self.stdout.WARNING("Socket closed in PeersManager")
-                break
-            except Exception as e:
-                self.stdout.ERROR("Error when read from socket in peers_manager.PeersManager:", e)
+                self.stdout.WARNING('Blocking IO in PeersManager:', e)
                 break
 
         return data
@@ -484,8 +476,16 @@ class PeersManager(Thread):
 
                     try:
                         payload = self._read_from_socket(socket)
+                    except ConnectionResetError:
+                        self.stdout.WARNING("Connection reset by peer in PeersManager")
+                        self.remove_peer(peer=peer)
+                        continue
+                    except OSError:
+                        self.stdout.WARNING("Socket closed in PeersManager")
+                        self.remove_peer(peer=peer)
+                        continue
                     except Exception as e:
-                        self.stdout.ERROR("Recv failed %s" % e)
+                        self.stdout.ERROR("Error when read from socket in peers_manager.PeersManager:", e)
                         self.remove_peer(peer=peer)
                         continue
 
@@ -504,6 +504,8 @@ class PeersManager(Thread):
         if peer in self.peers_pool.connected_peers.values():
             try:
                 peer.socket.close()
+            except BrokenPipeError as e:
+                self.stdout.WARNING("Remove peer broken pipe error:", e)
             except Exception as e:
                 self.stdout.ERROR("Wrong when remove peer: %s" % e)
 
