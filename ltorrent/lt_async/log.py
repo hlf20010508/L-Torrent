@@ -30,9 +30,13 @@ class Logger(LoggerBase):
     
     async def ERROR(self, *args):
         buffer = StringIO()
-        print_exc(limit=None, file=buffer)
+        print_exc(file=buffer)
         print("ERROR:", *args)
         print(buffer.getvalue())
+        with open('log', 'a+') as file:
+            file.write(' '.join(map(str, args)) + '\n')
+            file.write(buffer.getvalue() + '\n')
+
     
     async def WARNING(self, *args):
         print("WARNING:", *args)

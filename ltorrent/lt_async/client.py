@@ -169,7 +169,7 @@ class Client:
             self.peers_manager.is_active = False
 
             for peer in self.peers_manager.peers_pool.connected_peers.values():
-                peer.socket.close()
+                await peer.socket.close()
             self.peers_pool = PeersPool()
 
             await self.peers_scraper.run()

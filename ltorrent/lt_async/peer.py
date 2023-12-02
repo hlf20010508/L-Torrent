@@ -1,7 +1,7 @@
 __author__ = 'alexisgallepe, L-ING'
 
 import time
-import socket
+import asyncio
 import struct
 import bitstring
 from ltorrent.lt_async.message import (
@@ -12,6 +12,7 @@ from ltorrent.lt_async.message import (
     KeepAlive,
     MessageDispatcher
 )
+from ltorrent.lt_async.async_tcp import AsyncTCPClient
 from ltorrent.lt_async.log import Logger
 
 
@@ -45,17 +46,17 @@ class Peer(object):
 
     async def connect(self, timeout=1):
         try:
-            self.socket = socket.create_connection((self.ip, self.port), timeout=timeout)
-            self.socket.setblocking(False)
+            self.socket = AsyncTCPClient()
+            await self.socket.create_connection(self.ip, self.port, timeout=timeout)
             self.healthy = True
-        except socket.timeout:
+        except asyncio.TimeoutError:
             await self.stdout.WARNING("Connection timeout in Peer.")
             return False
-        except ConnectionRefusedError:
-            await self.stdout.WARNING("Connection refused in Peer.")
-            return False
+        # except ConnectionRefusedError:
+        #     await self.stdout.WARNING("Connection refused in Peer.")
+        #     return False
         except OSError as e:
-            # No route to host
+            # Network is unreachable
             await self.stdout.WARNING(e)
             return False
         except Exception as e:
@@ -66,7 +67,7 @@ class Peer(object):
 
     async def send_to_peer(self, msg):
         try:
-            self.socket.send(msg)
+            await self.socket.send(msg)
             self.last_call = time.time()
         except BrokenPipeError:
             self.healthy = False
