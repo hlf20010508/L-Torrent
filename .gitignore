@@ -1,6 +1,7 @@
 .DS_Store
 .venv
 pytorrent/
+test.py
 
 
 # Torrent files
