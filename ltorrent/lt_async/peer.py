@@ -17,7 +17,7 @@ from ltorrent.lt_async.log import Logger
 
 
 class Peer(object):
-    def __init__(self, number_of_pieces, ip, peers_manager, piece_manager, port=6881, stdout=None):
+    def __init__(self, number_of_pieces, ip, peers_manager, pieces_manager, port=6881, stdout=None):
         self.last_call = 0.0
         self.has_handshaked = False
         self.healthy = False
@@ -25,7 +25,7 @@ class Peer(object):
         self.socket = None
         self.ip = ip
         self.peers_manager = peers_manager
-        self.piece_manager = piece_manager
+        self.pieces_manager = pieces_manager
         self.port = port
         self.number_of_pieces = number_of_pieces
         if stdout:
@@ -44,7 +44,7 @@ class Peer(object):
     def __hash__(self):
         return "%s:%d" % (self.ip, self.port)
 
-    async def connect(self, timeout=1):
+    async def connect(self, timeout=2):
         try:
             self.socket = AsyncTCPClient()
             await self.socket.create_connection(self.ip, self.port, timeout=timeout)
@@ -161,7 +161,8 @@ class Peer(object):
         """
         :type message: message.Piece
         """
-        await self.piece_manager.receive_block_piece(message.piece_index, message.block_offset, message.block)
+        # await self.stdout.DEBUG('handle_piece - %s' % self.ip)
+        await self.pieces_manager.receive_block_piece(message.piece_index, message.block_offset, message.block)
 
     async def handle_cancel(self):
         await self.stdout.DEBUG('handle_cancel - %s' % self.ip)

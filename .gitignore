@@ -2,6 +2,7 @@
 .venv
 pytorrent/
 test.py
+log
 
 
 # Torrent files

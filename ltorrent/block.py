@@ -2,7 +2,8 @@ __author__ = 'alexisgallepe, L-ING'
 
 from enum import Enum
 
-BLOCK_SIZE = 2 ** 14
+# 2 ** 14
+BLOCK_SIZE = 16384
 
 
 class State(Enum):

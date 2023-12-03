@@ -46,11 +46,9 @@ from ltorrent.client import Client
 
 torrent_path = "your-torrent-path"
 port = 8080
-timeout = 1
 
 client = Client(
-    port=port,
-    timeout=timeout,
+    port=port
 )
 
 client.load(torrent_path=torrent_path)
@@ -64,11 +62,9 @@ from ltorrent.client import Client
 
 magnet_link = "your-magnet-link"
 port = 8080
-timeout = 1
 
 client = Client(
-    port=port,
-    timeout=timeout,
+    port=port
 )
 
 client.load(magnet_link=magnet_link)
@@ -110,12 +106,10 @@ class MyStorage(CustomStorage):
 
 magnet_link = "your-magnet-link"
 port = 8080
-timeout = 1
 custom_storage = MyStorage()
 
 client = Client(
     port=port,
-    timeout=timeout,
     custom_storage=custom_storage
 )
 
@@ -130,11 +124,9 @@ from ltorrent.client import Client
 
 magnet_link = "your-magnet-link"
 port = 8080
-timeout = 1
 
 client = Client(
-    port=port,
-    timeout=timeout,
+    port=port
 )
 
 client.load(magnet_link=magnet_link)

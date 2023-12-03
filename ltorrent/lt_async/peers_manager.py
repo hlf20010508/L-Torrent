@@ -53,9 +53,8 @@ class PeersPool:
     connected_peers = {}
 
     
-
 class HTTPScraper:
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=1, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
         self.torrent = torrent
         self.tracker = tracker
         self.peers_pool = peers_pool
@@ -140,7 +139,7 @@ class HTTPScraper:
 
 
 class UDPScraper:
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=1, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
         self.torrent = torrent
         self.tracker = tracker
         self.peers_pool = peers_pool
@@ -279,12 +278,12 @@ class UDPScraper:
 
 
 class PeersConnector:
-    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, piece_manager, del_queue, timeout=1, stdout=None):
+    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, timeout=2, stdout=None):
         self.torrent = torrent
         self.sock_addr = sock_addr
         self.peers_pool = peers_pool
         self.peers_manager = peers_manager
-        self.piece_manager = piece_manager
+        self.pieces_manager = pieces_manager
         self.del_queue = del_queue
         self.timeout = timeout
         if stdout:
@@ -298,7 +297,7 @@ class PeersConnector:
                 new_peer = Peer(
                     number_of_pieces=int(self.torrent.number_of_pieces),
                     peers_manager=self.peers_manager,
-                    piece_manager=self.piece_manager,
+                    pieces_manager=self.pieces_manager,
                     ip=self.sock_addr.ip,
                     port=self.sock_addr.port,
                     stdout=self.stdout
@@ -325,12 +324,12 @@ class PeersConnector:
 
 
 class PeersScraper:
-    def __init__(self, torrent, peers_pool, peers_manager, piece_manager, port=6881, timeout=1, stdout=None):
+    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, port=6881, timeout=2, stdout=None):
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool
         self.peers_manager = peers_manager
-        self.piece_manager = piece_manager
+        self.pieces_manager = pieces_manager
         self.port = port
         self.timeout = timeout
         self.queue = queue.Queue()
@@ -378,7 +377,7 @@ class PeersScraper:
                 sock_addr=sock_addr,
                 peers_pool=self.peers_pool,
                 peers_manager=self.peers_manager,
-                piece_manager=self.piece_manager,
+                pieces_manager=self.pieces_manager,
                 del_queue=self.queue,
                 timeout=self.timeout,
                 stdout=self.stdout
@@ -455,41 +454,38 @@ class PeersManager:
         return buff
 
     async def listen_to_peer(self, peer, SEMA):
-        async with SEMA:
-            try:
-                if not peer.healthy:
-                    await self.remove_peer(peer=peer)
-                    return
-                
-                try:
-                    payload = await self._read_from_socket(peer.socket)
-                except asyncio.TimeoutError:
-                    await self.stdout.WARNING("Read from socket timeout in PeersManager")
-                    return
-                except BlockingIOError as e:
-                    # Resource temporarily unavailable
-                    await self.stdout.WARNING('Blocking IO in PeersManager:', e)
-                    return
-                except ConnectionResetError:
-                    await self.stdout.WARNING("Connection reset by peer in PeersManager")
-                    await self.remove_peer(peer=peer)
-                    return
-                except OSError:
-                    await self.stdout.WARNING("Socket closed in PeersManager")
-                    await self.remove_peer(peer=peer)
-                    return
-                except Exception as e:
-                    await self.stdout.ERROR("Error when read from socket in peers_manager.PeersManager:", e)
-                    await self.remove_peer(peer=peer)
-                    return
-
-                peer.read_buffer += payload
-                async for message in peer.get_messages():
-                    await self._process_new_message(new_message=message, peer=peer)
-
-            except Exception as e:
-                await self.stdout.ERROR("Error when listen to peer", e)
+        # async with SEMA:
+        try:
+            if not peer.healthy:
                 await self.remove_peer(peer=peer)
+                return
+            
+            try:
+                payload = await self._read_from_socket(peer.socket)
+            except BlockingIOError as e:
+                # Resource temporarily unavailable
+                await self.stdout.WARNING('Blocking IO in PeersManager:', e)
+                return
+            except ConnectionResetError:
+                await self.stdout.WARNING("Connection reset by peer in PeersManager")
+                await self.remove_peer(peer=peer)
+                return
+            except OSError:
+                await self.stdout.WARNING("Socket closed in PeersManager")
+                await self.remove_peer(peer=peer)
+                return
+            except Exception as e:
+                await self.stdout.ERROR("Error when read from socket in peers_manager.PeersManager:", e)
+                await self.remove_peer(peer=peer)
+                return
+
+            peer.read_buffer += payload
+            async for message in peer.get_messages():
+                await self._process_new_message(new_message=message, peer=peer)
+
+        except Exception as e:
+            await self.stdout.ERROR("Error when listen to peer", e)
+            await self.remove_peer(peer=peer)
 
     async def start(self):
         SEMA = asyncio.Semaphore(MAX_WORKERS)

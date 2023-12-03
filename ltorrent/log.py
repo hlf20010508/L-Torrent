@@ -33,6 +33,9 @@ class Logger(LoggerBase):
         print_exc(file=buffer)
         print("ERROR:", *args)
         print(buffer.getvalue())
+        with open('log', 'a+') as file:
+            file.write(' '.join(map(str, args)) + '\n')
+            file.write(buffer.getvalue() + '\n')
     
     def WARNING(self, *args):
         print("WARNING:", *args)

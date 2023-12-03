@@ -4,9 +4,10 @@ class AsyncTCPClient:
     def __init__(self):
         self.host = ''
         self.port = 0
-        self.timeout = 1
+        self.timeout = 2
         self.reader = None
         self.writer = None
+        self.loop = asyncio.get_running_loop()
 
     async def create_connection(self, host, port, timeout):
         self.host = host
@@ -25,8 +26,15 @@ class AsyncTCPClient:
 
     async def recv(self, buffer_size=-1):
         if self.reader is not None:
-            data = await asyncio.wait_for(self.reader.read(buffer_size), timeout=self.timeout)
-            return data
+            try:
+                first_byte = await asyncio.wait_for(self.reader.read(1), 0.5)
+                if not first_byte:
+                    return b''
+                data = first_byte + await asyncio.wait_for(self.reader.read(buffer_size - 1), 2)
+                return data
+            except asyncio.TimeoutError:
+                # await self.stdout.WARNING("Read from socket timeout in PeersManager")
+                return b''
         else:
             raise Exception("AsyncTCPClient not connected yet.")
 

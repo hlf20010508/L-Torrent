@@ -13,7 +13,7 @@ class Client:
     last_percentage_completed = -1
     last_log_line = ""
 
-    def __init__(self, port, timeout=1, custom_storage=None, stdout=None):
+    def __init__(self, port, timeout=2, custom_storage=None, stdout=None):
         self.port = port
         self.timeout = timeout
         self.custom_storage = custom_storage
@@ -91,7 +91,7 @@ class Client:
                 torrent=self.torrent,
                 peers_pool=self.peers_pool,
                 peers_manager=self.peers_manager,
-                piece_manager=self.pieces_manager,
+                pieces_manager=self.pieces_manager,
                 port=self.port,
                 timeout=self.timeout,
                 stdout=self.stdout

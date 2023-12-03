@@ -6,11 +6,9 @@ from ltorrent.client import Client
 if __name__ == '__main__':
     torrent_path = "examples/example.torrent"
     port = 8080
-    timeout = 1
 
     client = Client(
-        port=port,
-        timeout=timeout,
+        port=port
     )
     
     client.load(torrent_path=torrent_path)

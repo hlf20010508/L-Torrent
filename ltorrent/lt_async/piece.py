@@ -8,11 +8,11 @@ from ltorrent.lt_async.log import Logger
 
 
 class Piece(object):
-    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, piece_manager, custom_storage=None, stdout=None):
+    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, pieces_manager, custom_storage=None, stdout=None):
         self.piece_index: int = piece_index
         self.piece_size: int = piece_size
         self.piece_hash: str = piece_hash
-        self.piece_manager = piece_manager
+        self.pieces_manager = pieces_manager
         self.is_full: bool = False
         self.files = []
         self.raw_data: bytes = b''
@@ -97,7 +97,7 @@ class Piece(object):
             self.custom_storage.write(self.files, self.raw_data)
         else:
             await self._write_piece_on_disk()
-        self.piece_manager.update_bitfield(self.piece_index)
+        self.pieces_manager.update_bitfield(self.piece_index)
         self.clear()
 
         return True

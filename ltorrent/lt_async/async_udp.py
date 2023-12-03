@@ -12,7 +12,7 @@ class AsyncUDPClient:
     def __init__(self):
         self.host = ''
         self.port = 0
-        self.timeout = 1
+        self.timeout = 2
         self.transport = None
         self.protocol = None
         self.recv_future = None

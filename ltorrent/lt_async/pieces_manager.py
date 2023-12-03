@@ -79,7 +79,7 @@ class PiecesManager(object):
                     piece_index=i,
                     piece_size=self.torrent.piece_length,
                     piece_hash=self.torrent.pieces[start:end],
-                    piece_manager=self,
+                    pieces_manager=self,
                     custom_storage=self.custom_storage,
                     stdout=self.stdout
                 ))
@@ -89,7 +89,7 @@ class PiecesManager(object):
                     piece_index=i,
                     piece_size=piece_length,
                     piece_hash=self.torrent.pieces[start:end],
-                    piece_manager=self,
+                    pieces_manager=self,
                     custom_storage=self.custom_storage,
                     stdout=self.stdout
                 ))
