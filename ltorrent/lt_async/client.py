@@ -42,7 +42,7 @@ class Client:
         else:
             raise Exception("Neither torrent path nor magnet link is provided.")
 
-    async def select_file(self, stdin=input):
+    async def select_file(self, stdin=None):
         if not self.torrent:
             raise Exception("You haven't load torrent file or magnet link.")
 
@@ -50,7 +50,10 @@ class Client:
         for i, file_info in enumerate(self.torrent.file_names):
             output += '%d. \"%s\" %.2fMB\n' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024)
         await self.stdout.MUST(output.strip())
-        selection = stdin('Select files: ').split()
+        if stdin:
+            selection = await stdin('Select files: ').split()
+        else:
+            selection = input('Select files: ').split()
         result = []
         for i in selection:
             # range
