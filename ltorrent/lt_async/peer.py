@@ -69,6 +69,9 @@ class Peer(object):
         try:
             await self.socket.send(msg)
             self.last_call = time.time()
+        except ConnectionResetError:
+            self.healthy = False
+            await self.stdout.WARNING("Connection reset by peer in send_to_peer")
         except BrokenPipeError:
             self.healthy = False
             await self.stdout.WARNING("Broken pipe. Sending message to a closed peer.")

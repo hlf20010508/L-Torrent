@@ -501,6 +501,8 @@ class PeersManager:
         if peer in self.peers_pool.connected_peers.values():
             try:
                 await peer.socket.close()
+            except ConnectionResetError:
+                await self.stdout.WARNING("Connection reset by peer in remove_peer")
             except BrokenPipeError as e:
                 await self.stdout.WARNING("Remove peer broken pipe error:", e)
             except Exception as e:
