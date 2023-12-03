@@ -9,8 +9,9 @@ A pure python torrent client based on PyTorrent
 - Connect to peers with multiple thread.
 - Support [custom storage](#custom-storage).
 - Support file selection.
-- Support custom [stdout](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdout.py) and [stdin](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdin.py).
+- Support custom [stdout](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdout.py).
 - Support [running as a thread](#run-as-a-thread).
+- Support [asynchrony](https://github.com/hlf20010508/LTorrent/tree/master/examples/async.py).
 
 See examples [here](https://github.com/hlf20010508/LTorrent/tree/master/examples).
 
@@ -28,9 +29,9 @@ Range supported, linked by `-`, eg: `4 6-10 12 14-20`.
 ## Installation
 ```sh
 # using pip
-pip install git+https://github.com/hlf20010508/LTorrent.git@1.2.0
+pip install git+https://github.com/hlf20010508/LTorrent.git@1.3.0
 # using pipenv
-pipenv install git+https://github.com/hlf20010508/LTorrent.git@1.2.0#egg=LTorrent
+pipenv install git+https://github.com/hlf20010508/LTorrent.git@1.3.0#egg=LTorrent
 ```
 
 ## Start
@@ -52,7 +53,9 @@ client = Client(
 )
 
 client.load(torrent_path=torrent_path)
-client.select_file()
+client.list_file()
+selection = input("Select file: ")
+client.select_file(selection=selection)
 client.run()
 ```
 
@@ -68,7 +71,9 @@ client = Client(
 )
 
 client.load(magnet_link=magnet_link)
-client.select_file()
+client.list_file()
+selection = input("Select file: ")
+client.select_file(selection=selection)
 client.run()
 ```
 
@@ -114,7 +119,9 @@ client = Client(
 )
 
 client.load(magnet_link=magnet_link)
-client.select_file()
+client.list_file()
+selection = input("Select file: ")
+client.select_file(selection=selection)
 client.run()
 ```
 
@@ -130,6 +137,8 @@ client = Client(
 )
 
 client.load(magnet_link=magnet_link)
-client.select_file()
+client.list_file()
+selection = input("Select file: ")
+client.select_file(selection=selection)
 client.start()
 ```

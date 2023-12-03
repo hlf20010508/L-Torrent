@@ -4,6 +4,7 @@ from io import StringIO
 class LoggerMustException(Exception):
     pass
 
+
 class LoggerBase:
     def __init__(self, *args):
         pass
@@ -23,8 +24,8 @@ class LoggerBase:
     async def PROGRESS(self, *args):
         pass
 
-    async def MUST(self, *args):
-        raise LoggerMustException
+    async def FILES(self, *args):
+        pass
 
 
 class Logger(LoggerBase):
@@ -53,5 +54,5 @@ class Logger(LoggerBase):
     async def PROGRESS(self, *args):
         print("PROGRESS:", *args)
 
-    async def MUST(self, *args):
+    async def FILES(self, *args):
         print(*args)

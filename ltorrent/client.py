@@ -42,15 +42,20 @@ class Client(Thread):
         else:
             raise Exception("Neither torrent path nor magnet link is provided.")
 
-    def select_file(self, stdin=input):
+    def list_file(self):
         if not self.torrent:
             raise Exception("You haven't load torrent file or magnet link.")
-
-        output = '0. Exit\n1. All\n'
+        output = '0. All\n'
         for i, file_info in enumerate(self.torrent.file_names):
-            output += '%d. \"%s\" %.2fMB\n' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024)
-        self.stdout.MUST(output.strip())
-        selection = stdin('Select files: ').split()
+            output += '%d. \"%s\" %.2fMB\n' % (i + 1, file_info['path'], file_info['length'] / 1024 / 1024)
+        self.stdout.FILES(output.strip())
+
+    def select_file(self, selection):
+        if not self.torrent:
+            raise Exception("You haven't load torrent file or magnet link.")
+        if not selection:
+            raise Exception("No selection")
+        selection = selection.split()
         result = []
         for i in selection:
             # range
@@ -62,11 +67,9 @@ class Client(Thread):
         if max(result) > len(self.torrent.file_names) + 1:
             raise Exception('Wrong file number')
         elif 0 in result:
-            raise ExitSelectionException
-        elif 1 in result:
             self.selection = range(0, len(self.torrent.file_names))
         else:
-            self.selection = [item - 2 for item in result]
+            self.selection = [item - 1 for item in result]
 
     def run(self):
         try:

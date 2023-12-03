@@ -12,5 +12,7 @@ if __name__ == '__main__':
     )
 
     client.load(magnet_link=magnet_link)
-    client.select_file()
+    client.list_file()
+    selection = input("Select file: ")
+    client.select_file(selection=selection)
     client.run()

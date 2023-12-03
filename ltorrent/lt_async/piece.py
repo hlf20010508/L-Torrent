@@ -42,7 +42,7 @@ class Piece(object):
 
     async def get_block(self, block_offset, block_length):
         if self.custom_storage:
-            return self.custom_storage.read(self.files, block_offset, block_length)
+            return await self.custom_storage.read(self.files, block_offset, block_length)
 
         file_data_list = []
         for file in self.files:
@@ -95,7 +95,7 @@ class Piece(object):
         self.is_full = True
         self.raw_data = data
         if self.custom_storage:
-            self.custom_storage.write(self.files, self.raw_data)
+            await self.custom_storage.write(self.files, self.raw_data)
         else:
             await self._write_piece_on_disk()
         self.pieces_manager.update_bitfield(self.piece_index)

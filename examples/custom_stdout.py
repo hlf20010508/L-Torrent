@@ -2,24 +2,34 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from ltorrent.client import Client
-from ltorrent.log import LoggerBase
+from ltorrent.log import Logger
 
-
-class MyLogger(LoggerBase):
+# Ignore WARNING
+class MyLogger(Logger):
     def __init__(self):
-        LoggerBase.__init__(self)
+        Logger.__init__(self)
     
-    def MUST(self, *args):
-        print(*args)
-    
-    def INFO(self, *args):
-        print(*args)
+    def WARNING(self, *args):
+        pass
 
-    def DEBUG(self, *args):
-        print(*args)
+# Or ignore WARNING and overwrite others
+# from ltorrent.log import LoggerBase
+
+# class MyLogger(LoggerBase):
+#     def __init__(self):
+#         LoggerBase.__init__(self)
     
-    def PROGRESS(self, *args):
-        print(*args)
+#     def INFO(self, *args):
+#         print(*args)
+
+#     def DEBUG(self, *args):
+#         print(*args)
+    
+#     def PROGRESS(self, *args):
+#         print(*args)
+    
+#     def FILES(self, *args):
+#         print(*args)
 
 
 if __name__ == '__main__':
@@ -33,5 +43,7 @@ if __name__ == '__main__':
     )
 
     client.load(magnet_link=magnet_link)
-    client.select_file()
+    client.list_file()
+    selection = input("Select file: ")
+    client.select_file(selection=selection)
     client.run()

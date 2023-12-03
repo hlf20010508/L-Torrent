@@ -41,18 +41,20 @@ class Client:
         else:
             raise Exception("Neither torrent path nor magnet link is provided.")
 
-    async def select_file(self, stdin=None):
+    async def list_file(self):
         if not self.torrent:
             raise Exception("You haven't load torrent file or magnet link.")
-
-        output = '0. Exit\n1. All\n'
+        output = '0. All\n'
         for i, file_info in enumerate(self.torrent.file_names):
-            output += '%d. \"%s\" %.2fMB\n' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024)
-        await self.stdout.MUST(output.strip())
-        if stdin:
-            selection = (await stdin('Select files: ')).split()
-        else:
-            selection = input('Select files: ').split()
+            output += '%d. \"%s\" %.2fMB\n' % (i + 1, file_info['path'], file_info['length'] / 1024 / 1024)
+        await self.stdout.FILES(output.strip())
+
+    async def select_file(self, selection):
+        if not self.torrent:
+            raise Exception("You haven't load torrent file or magnet link.")
+        if not selection:
+            raise Exception("No selection")
+        selection = selection.split()
         result = []
         for i in selection:
             # range
@@ -64,11 +66,9 @@ class Client:
         if max(result) > len(self.torrent.file_names) + 1:
             raise Exception('Wrong file number')
         elif 0 in result:
-            raise ExitSelectionException
-        elif 1 in result:
             self.selection = range(0, len(self.torrent.file_names))
         else:
-            self.selection = [item - 2 for item in result]
+            self.selection = [item - 1 for item in result]
 
     async def run(self):
         try:
@@ -226,8 +226,8 @@ class CustomStorage:
     def __init__(self):
         pass
 
-    def write(self, file_piece_list, data):
+    async def write(self, file_piece_list, data):
         raise Exception("CustomStorage.write not implemented")
 
-    def read(self, files, block_offset, block_length):
+    async def read(self, files, block_offset, block_length):
         raise Exception("CustomStorage.read not implemented")
