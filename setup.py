@@ -24,7 +24,7 @@ setup(
     version=version,
     long_description_content_type="text/markdown",
     package_dir={"ltorrent": "ltorrent"},
-    packages=["ltorrent"],
+    packages=["ltorrent", "ltorrent.lt_async"],
     install_requires=["bcoding", "bitstring", "requests", "ipaddress", "aiohttp"],
     license="Unlicense license",
     classifiers=[
