@@ -462,9 +462,9 @@ class PeersManager:
             
             try:
                 payload = await self._read_from_socket(peer.socket)
-            except BlockingIOError as e:
+            except BlockingIOError:
                 # Resource temporarily unavailable
-                await self.stdout.WARNING('Blocking IO in PeersManager:', e)
+                # await self.stdout.WARNING('Blocking IO in PeersManager:', e)
                 return
             except ConnectionResetError:
                 await self.stdout.WARNING("Connection reset by peer in PeersManager")

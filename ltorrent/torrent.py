@@ -69,7 +69,8 @@ class Torrent(object):
     def get_trakers(self):
         trackers_list = TRACKERS_LIST
         if 'announce-list' in self.torrent_file:
-            trackers_list.extend(self.torrent_file['announce-list'])
+            for sub_announce_list in self.torrent_file['announce-list']:
+                trackers_list.extend(sub_announce_list)
         elif "announce" in self.torrent_file:
             return trackers_list.append(self.torrent_file['announce'])
         return trackers_list

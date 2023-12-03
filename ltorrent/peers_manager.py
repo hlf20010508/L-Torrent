@@ -455,9 +455,9 @@ class PeersManager(Thread):
             except socket.timeout:
                 self.stdout.WARNING("Read from socket timeout in PeersManager")
                 break
-            except BlockingIOError as e:
+            except BlockingIOError:
                 # Resource temporarily unavailable
-                self.stdout.WARNING('Blocking IO in PeersManager:', e)
+                # self.stdout.WARNING('Blocking IO in PeersManager:', e)
                 break
 
         return data
