@@ -28,12 +28,6 @@ class AsyncUDPClient:
             remote_addr=(self.host, self.port)
         )
 
-        self.transport.sendto(b'ping')
-
-        self.recv_future = self.loop.create_future()
-
-        await asyncio.wait_for(self.recv_future, self.timeout)
-
     async def send(self, msg):
         if not isinstance(msg, bytes):
             msg = msg.encode()

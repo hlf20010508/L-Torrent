@@ -172,11 +172,7 @@ class UDPScraper:
                         return
 
                 sock = AsyncUDPClient()
-                try:
-                    await sock.create_connection(host=ip, port=port, timeout=self.timeout)
-                except asyncio.exceptions.TimeoutError:
-                    await self.stdout.WARNING("Timeout in udp scraper:", tracker)
-                    return
+                await sock.create_connection(host=ip, port=port, timeout=self.timeout)
 
                 if ipaddress.ip_address(ip).is_private:
                     await self.stdout.WARNING("ip address is private:", tracker)
@@ -253,26 +249,26 @@ class UDPScraper:
     async def _read_from_socket(self, sock):
         data = b''
 
-        # while True:
-        try:
-            buff = await sock.recv()
-            # if len(buff) <= 0:
-                # break
+        while True:
+            try:
+                buff = await sock.recv(4096)
+                if len(buff) <= 0:
+                    break
 
-            data += buff
-        # except socket.timeout:
-        except asyncio.exceptions.TimeoutError:
-            await self.stdout.WARNING("Read from socket timeout in UDPScraper")
-            # break
-        except BlockingIOError:
-            await self.stdout.WARNING("Resource temporarily unavailable when read from socket in UDPScraper")
-            # break
-        except OSError:
-            await self.stdout.WARNING("Socket closed in UDPScraper")
-            # break
-        except Exception as e:
-            await self.stdout.ERROR("Error when read from socket in UDPScraper:", e)
-            # break
+                data += buff
+            # except socket.timeout:
+            except asyncio.exceptions.TimeoutError:
+                await self.stdout.WARNING("Read from socket timeout in UDPScraper")
+                break
+            except BlockingIOError:
+                await self.stdout.WARNING("Resource temporarily unavailable when read from socket in UDPScraper")
+                break
+            except OSError:
+                await self.stdout.WARNING("Socket closed in UDPScraper")
+                break
+            except Exception as e:
+                await self.stdout.ERROR("Error when read from socket in UDPScraper:", e)
+                break
 
         return data
 
