@@ -20,6 +20,9 @@ class LoggerBase:
     async def DEBUG(self, *args):
         pass
 
+    async def PROGRESS(self, *args):
+        pass
+
     async def MUST(self, *args):
         raise LoggerMustException
 
@@ -46,6 +49,9 @@ class Logger(LoggerBase):
 
     async def DEBUG(self, *args):
         print("DEBUG:", *args)
+    
+    async def PROGRESS(self, *args):
+        print("PROGRESS:", *args)
 
     async def MUST(self, *args):
         print(*args)

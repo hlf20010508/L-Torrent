@@ -2,7 +2,6 @@ __author__ = 'alexisgallepe, L-ING'
 
 import select
 from threading import Thread, BoundedSemaphore
-from pubsub import pub
 import socket
 import random
 import requests
@@ -270,11 +269,13 @@ class UDPScraper(Thread):
 
 
 class PeersConnector(Thread):
-    def __init__(self, torrent, sock_addr, peers_pool, del_queue, timeout=1, stdout=None):
+    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, timeout=1, stdout=None):
         Thread.__init__(self)
         self.torrent = torrent
         self.sock_addr = sock_addr
         self.peers_pool = peers_pool
+        self.peers_manager = peers_manager
+        self.pieces_manager = pieces_manager
         self.del_queue = del_queue
         self.timeout = timeout
         if stdout:
@@ -287,6 +288,8 @@ class PeersConnector(Thread):
         try:
             new_peer = Peer(
                 number_of_pieces=int(self.torrent.number_of_pieces),
+                peers_manager=self.peers_manager,
+                pieces_manager=self.pieces_manager,
                 ip=self.sock_addr.ip,
                 port=self.sock_addr.port,
                 stdout=self.stdout
@@ -315,10 +318,12 @@ class PeersConnector(Thread):
 
 
 class PeersScraper():
-    def __init__(self, torrent, peers_pool, port=6881, timeout=1, stdout=None):
+    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, port=6881, timeout=1, stdout=None):
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool
+        self.peers_manager = peers_manager
+        self.pieces_manager = pieces_manager
         self.port = port
         self.timeout = timeout
         self.queue = queue.Queue()
@@ -366,6 +371,8 @@ class PeersScraper():
                 torrent=self.torrent,
                 sock_addr=sock_addr,
                 peers_pool=self.peers_pool,
+                peers_manager=self.peers_manager,
+                pieces_manager=self.pieces_manager,
                 del_queue=self.queue,
                 timeout=self.timeout,
                 stdout=self.stdout
@@ -397,9 +404,6 @@ class PeersManager(Thread):
             self.stdout = stdout
         else:
             self.stdout = Logger()
-
-        # Events
-        pub.subscribe(self.peer_requests_piece, 'PeersManager.PeerRequestsPiece')
 
     def peer_requests_piece(self, request=None, peer=None):
         if not request or not peer:

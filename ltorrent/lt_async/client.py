@@ -6,6 +6,7 @@ from ltorrent.lt_async.peers_manager import PeersPool, PeersScraper, PeersManage
 from ltorrent.lt_async.pieces_manager import PiecesManager, ExitSelectionException
 from ltorrent.torrent import Torrent
 from ltorrent.lt_async.message import Request
+from ltorrent.block import State
 from ltorrent.lt_async.log import Logger
 
 
@@ -86,7 +87,6 @@ class Client:
                 peers_pool=self.peers_pool,
                 stdout=self.stdout
             )
-
             self.peers_scraper = PeersScraper(
                 torrent=self.torrent,
                 peers_pool=self.peers_pool,
@@ -108,7 +108,7 @@ class Client:
 
             while not self.pieces_manager.all_pieces_completed() and self.is_active:
                 if not self.peers_manager.has_unchoked_peers():
-                    await self.stdout.WARNING("No unchocked peers")
+                    await self.stdout.INFO("No unchocked peers")
                     await sleep(1)
                     continue
 
@@ -141,7 +141,7 @@ class Client:
 
                 await self.display_progression()
 
-                await sleep(0.1)
+                await sleep(0.2)
             
             if self.is_active:
                 await self.display_progression()
@@ -169,7 +169,10 @@ class Client:
             self.peers_manager.is_active = False
 
             for peer in self.peers_manager.peers_pool.connected_peers.values():
-                await peer.socket.close()
+                try:
+                    await peer.socket.close()
+                except Exception as e:
+                    await self.stdout.ERROR("Wrong when remove peer: %s" % e)
             self.peers_pool = PeersPool()
 
             await self.peers_scraper.run()
@@ -186,18 +189,26 @@ class Client:
             self.last_update = time.time()
             return
 
+        # new_progression = 0
+        # for i in range(self.pieces_manager.number_of_pieces):
+        #     for j in range(self.pieces_manager.pieces[i].number_of_blocks):
+        #             if self.pieces_manager.pieces[i].blocks[j].state == State.FULL:
+        #                 new_progression += self.pieces_manager.pieces[i].blocks[j].block_size
+
         number_of_peers = self.peers_manager.unchoked_peers_count()
-        percentage_completed = (self.pieces_manager.complete_pieces / self.pieces_manager.number_of_active_pieces) * 100
+        # percentage_completed = (self.pieces_manager.completed_pieces / self.pieces_manager.number_of_active_pieces) * 100
+        # percentage_completed = (new_progression / self.torrent.total_length) * 100
+        percentage_completed = (self.pieces_manager.completed_size / self.torrent.total_length) * 100
 
         current_log_line = "Connected peers: %d - %.2f%% completed | %d/%d pieces" % (
             number_of_peers,
             percentage_completed,
-            self.pieces_manager.complete_pieces,
+            self.pieces_manager.completed_pieces,
             self.pieces_manager.number_of_active_pieces
         )
 
         if current_log_line != self.last_log_line:
-            await self.stdout.INFO(current_log_line)
+            await self.stdout.PROGRESS(current_log_line)
             self.last_log_line = current_log_line
         
         if percentage_completed != self.last_percentage_completed:

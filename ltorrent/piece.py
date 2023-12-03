@@ -3,16 +3,16 @@ __author__ = 'alexisgallepe, L-ING'
 import hashlib
 import math
 import time
-from pubsub import pub
 from ltorrent.block import Block, BLOCK_SIZE, State
 from ltorrent.log import Logger
 
 
 class Piece(object):
-    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, custom_storage=None, stdout=None):
+    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, pieces_manager, custom_storage=None, stdout=None):
         self.piece_index: int = piece_index
         self.piece_size: int = piece_size
         self.piece_hash: str = piece_hash
+        self.pieces_manager = pieces_manager
         self.is_full: bool = False
         self.files = []
         self.raw_data: bytes = b''
@@ -38,6 +38,8 @@ class Piece(object):
         if not self.is_full and not self.blocks[index].state == State.FULL:
             self.blocks[index].data = data
             self.blocks[index].state = State.FULL
+            self.pieces_manager.completed_size += self.blocks[index].block_size
+
 
     def get_block(self, block_offset, block_length):
         if self.custom_storage:
@@ -97,7 +99,7 @@ class Piece(object):
             self.custom_storage.write(self.files, self.raw_data)
         else:
             self._write_piece_on_disk()
-        pub.sendMessage('PiecesManager.PieceCompleted', piece_index=self.piece_index)
+        self.pieces_manager.update_bitfield(piece_index=self.piece_index)
 
         return True
 

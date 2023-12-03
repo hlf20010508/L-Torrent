@@ -450,41 +450,47 @@ class PeersManager:
         return buff
 
     async def listen_to_peer(self, peer, SEMA):
-        # async with SEMA:
-        try:
-            if not peer.healthy:
-                await self.remove_peer(peer=peer)
-                return
-            
+        async with SEMA:
             try:
-                payload = await self._read_from_socket(peer.socket)
-            except BlockingIOError:
-                # Resource temporarily unavailable
-                # await self.stdout.WARNING('Blocking IO in PeersManager:', e)
-                return
-            except ConnectionResetError:
-                await self.stdout.WARNING("Connection reset by peer in PeersManager")
-                await self.remove_peer(peer=peer)
-                return
-            except OSError:
-                await self.stdout.WARNING("Socket closed in PeersManager")
-                await self.remove_peer(peer=peer)
-                return
+                if not peer.healthy:
+                    await self.remove_peer(peer=peer)
+                    return
+                
+                try:
+                    payload = await self._read_from_socket(peer.socket)
+                except asyncio.TimeoutError:
+                    peer.timeout_num += 1
+                    if peer.timeout_num > 5:
+                        await self.stdout.WARNING("Peer too many timeout, removed")
+                        await self.remove_peer(peer=peer)
+                    return
+                except BlockingIOError:
+                    # Resource temporarily unavailable
+                    # await self.stdout.WARNING('Blocking IO in PeersManager:', e)
+                    return
+                except ConnectionResetError:
+                    await self.stdout.WARNING("Connection reset by peer in PeersManager")
+                    await self.remove_peer(peer=peer)
+                    return
+                except OSError:
+                    await self.stdout.WARNING("Socket closed in PeersManager")
+                    await self.remove_peer(peer=peer)
+                    return
+                except Exception as e:
+                    await self.stdout.ERROR("Error when read from socket in peers_manager.PeersManager:", e)
+                    await self.remove_peer(peer=peer)
+                    return
+
+                peer.read_buffer += payload
+                async for message in peer.get_messages():
+                    await self._process_new_message(new_message=message, peer=peer)
+
             except Exception as e:
-                await self.stdout.ERROR("Error when read from socket in peers_manager.PeersManager:", e)
+                await self.stdout.ERROR("Error when listen to peer", e)
                 await self.remove_peer(peer=peer)
-                return
-
-            peer.read_buffer += payload
-            async for message in peer.get_messages():
-                await self._process_new_message(new_message=message, peer=peer)
-
-        except Exception as e:
-            await self.stdout.ERROR("Error when listen to peer", e)
-            await self.remove_peer(peer=peer)
 
     async def start(self):
-        SEMA = asyncio.Semaphore(MAX_WORKERS)
+        SEMA = asyncio.Semaphore(1)
         while self.is_active:
             try:
                 task_list = [self.listen_to_peer(peer, SEMA) for peer in self.peers_pool.connected_peers.values()]
@@ -501,10 +507,6 @@ class PeersManager:
         if peer in self.peers_pool.connected_peers.values():
             try:
                 await peer.socket.close()
-            except ConnectionResetError:
-                await self.stdout.WARNING("Connection reset by peer in remove_peer")
-            except BrokenPipeError as e:
-                await self.stdout.WARNING("Remove peer broken pipe error:", e)
             except Exception as e:
                 await self.stdout.ERROR("Wrong when remove peer: %s" % e)
 

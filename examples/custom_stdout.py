@@ -17,6 +17,9 @@ class MyLogger(LoggerBase):
 
     def DEBUG(self, *args):
         print(*args)
+    
+    def PROGRESS(self, *args):
+        print(*args)
 
 
 if __name__ == '__main__':

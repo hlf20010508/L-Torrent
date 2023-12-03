@@ -1,7 +1,6 @@
 __author__ = 'alexisgallepe, L-ING'
 
 import bitstring
-from pubsub import pub
 from ltorrent.piece import Piece
 from ltorrent.log import Logger
 
@@ -22,16 +21,13 @@ class PiecesManager(object):
         self.selection = selection
         self.files = self._load_files()
         self.number_of_active_pieces = self.get_active_pieces_num()
-        self.complete_pieces = 0
+        self.completed_pieces = 0
+        self.completed_size = 0
 
         for file in self.files:
             if file['fileId'] in self.selection:
                 id_piece = file['idPiece']
                 self.pieces[id_piece].files.append(file)
-
-        # events
-        pub.subscribe(self.receive_block_piece, 'PiecesManager.Piece')
-        pub.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
 
     def get_active_pieces_num(self):
         count = 0
@@ -44,9 +40,7 @@ class PiecesManager(object):
         self.bitfield[piece_index] = 1
         self.pieces[piece_index].clear()
 
-    def receive_block_piece(self, piece):
-        piece_index, piece_offset, piece_data = piece
-
+    def receive_block_piece(self, piece_index, piece_offset, piece_data):
         if self.pieces[piece_index].is_full:
             return
 
@@ -54,7 +48,7 @@ class PiecesManager(object):
 
         if self.pieces[piece_index].are_all_blocks_full():
             if self.pieces[piece_index].set_to_full():
-                self.complete_pieces +=1
+                self.completed_pieces +=1
 
 
     def get_block(self, piece_index, block_offset, block_length):
@@ -87,6 +81,7 @@ class PiecesManager(object):
                     piece_index=i,
                     piece_size=self.torrent.piece_length,
                     piece_hash=self.torrent.pieces[start:end],
+                    pieces_manager=self,
                     custom_storage=self.custom_storage,
                     stdout=self.stdout
                 ))
@@ -96,6 +91,7 @@ class PiecesManager(object):
                     piece_index=i,
                     piece_size=piece_length,
                     piece_hash=self.torrent.pieces[start:end],
+                    pieces_manager=self,
                     custom_storage=self.custom_storage,
                     stdout=self.stdout
                 ))

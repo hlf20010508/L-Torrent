@@ -21,7 +21,8 @@ class PiecesManager(object):
         self.selection = selection
         self.files = self._load_files()
         self.number_of_active_pieces = self.get_active_pieces_num()
-        self.complete_pieces = 0
+        self.completed_pieces = 0
+        self.completed_size = 0
 
         for file in self.files:
             if file['fileId'] in self.selection:
@@ -46,7 +47,7 @@ class PiecesManager(object):
 
         if self.pieces[piece_index].are_all_blocks_full():
             if await self.pieces[piece_index].set_to_full():
-                self.complete_pieces +=1
+                self.completed_pieces +=1
 
 
     async def get_block(self, piece_index, block_offset, block_length):

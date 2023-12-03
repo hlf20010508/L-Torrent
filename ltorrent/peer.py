@@ -4,7 +4,6 @@ import time
 import socket
 import struct
 import bitstring
-from pubsub import pub
 from ltorrent.message import (
     WrongMessageException,
     UnChoke,
@@ -17,13 +16,15 @@ from ltorrent.log import Logger
 
 
 class Peer(object):
-    def __init__(self, number_of_pieces, ip, port=6881, stdout=None):
+    def __init__(self, number_of_pieces, ip, peers_manager, pieces_manager, port=6881, stdout=None):
         self.last_call = 0.0
         self.has_handshaked = False
         self.healthy = False
         self.read_buffer = b''
         self.socket = None
         self.ip = ip
+        self.peers_manager = peers_manager
+        self.pieces_manager = pieces_manager
         self.port = port
         self.number_of_pieces = number_of_pieces
         if stdout:
@@ -69,10 +70,9 @@ class Peer(object):
         except BrokenPipeError:
             self.healthy = False
             self.stdout.WARNING("Broken pipe. Sending message to a closed peer.")
-        except OSError as e:
-            # Socket closed in Peer
+        except OSError:
             self.healthy = False
-            self.stdout.WARNING(e)
+            self.stdout.WARNING("Socket closed in Peer")
         except Exception as e:
             self.healthy = False
             self.stdout.ERROR("Failed to send to peer:", e)
@@ -152,13 +152,17 @@ class Peer(object):
         """
         self.stdout.DEBUG('handle_request - %s' % self.ip)
         if self.is_interested() and self.is_unchoked():
-            pub.sendMessage('PeersManager.PeerRequestsPiece', request=request, peer=self)
+            self.peers_manager.peer_requests_piece(request=request, peer=self)
 
     def handle_piece(self, message):
         """
         :type message: message.Piece
         """
-        pub.sendMessage('PiecesManager.Piece', piece=(message.piece_index, message.block_offset, message.block))
+        self.pieces_manager.receive_block_piece(
+            piece_index=message.piece_index,
+            piece_offset=message.block_offset,
+            piece_data=message.block
+        )
 
     def handle_cancel(self):
         self.stdout.DEBUG('handle_cancel - %s' % self.ip)

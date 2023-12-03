@@ -7,6 +7,7 @@ from ltorrent.pieces_manager import PiecesManager, ExitSelectionException
 from ltorrent.torrent import Torrent
 from ltorrent.message import Request
 from ltorrent.log import Logger
+from ltorrent.block import State
 
 
 class Client(Thread):
@@ -75,13 +76,6 @@ class Client(Thread):
 
             self.peers_pool = PeersPool()
 
-            self.peers_scraper = PeersScraper(
-                torrent=self.torrent,
-                peers_pool=self.peers_pool,
-                port=self.port,
-                timeout=self.timeout,
-                stdout=self.stdout
-            )
             self.pieces_manager = PiecesManager(
                 torrent=self.torrent,
                 selection=self.selection,
@@ -92,6 +86,15 @@ class Client(Thread):
                 torrent=self.torrent,
                 pieces_manager=self.pieces_manager,
                 peers_pool=self.peers_pool,
+                stdout=self.stdout
+            )
+            self.peers_scraper = PeersScraper(
+                torrent=self.torrent,
+                peers_pool=self.peers_pool,
+                peers_manager=self.peers_manager,
+                pieces_manager=self.pieces_manager,
+                port=self.port,
+                timeout=self.timeout,
                 stdout=self.stdout
             )
 
@@ -106,7 +109,7 @@ class Client(Thread):
 
             while not self.pieces_manager.all_pieces_completed() and self.is_active:
                 if not self.peers_manager.has_unchoked_peers():
-                    self.stdout.WARNING("No unchocked peers")
+                    self.stdout.INFO("No unchocked peers")
                     time.sleep(1)
                     continue
 
@@ -191,18 +194,26 @@ class Client(Thread):
             self.last_update = time.time()
             return
 
+        # new_progression = 0
+        # for i in range(self.pieces_manager.number_of_pieces):
+        #     for j in range(self.pieces_manager.pieces[i].number_of_blocks):
+        #             if self.pieces_manager.pieces[i].blocks[j].state == State.FULL:
+        #                 new_progression += self.pieces_manager.pieces[i].blocks[j].block_size
+
         number_of_peers = self.peers_manager.unchoked_peers_count()
-        percentage_completed = (self.pieces_manager.complete_pieces / self.pieces_manager.number_of_active_pieces) * 100
+        # percentage_completed = (self.pieces_manager.completed_pieces / self.pieces_manager.number_of_active_pieces) * 100
+        # percentage_completed = (new_progression / self.torrent.total_length) * 100
+        percentage_completed = (self.pieces_manager.completed_size / self.torrent.total_length) * 100
 
         current_log_line = "Connected peers: %d - %.2f%% completed | %d/%d pieces" % (
             number_of_peers,
             percentage_completed,
-            self.pieces_manager.complete_pieces,
+            self.pieces_manager.completed_pieces,
             self.pieces_manager.number_of_active_pieces
         )
 
         if current_log_line != self.last_log_line:
-            self.stdout.INFO(current_log_line)
+            self.stdout.PROGRESS(current_log_line)
             self.last_log_line = current_log_line
         
         if percentage_completed != self.last_percentage_completed:

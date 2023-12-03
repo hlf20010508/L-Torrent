@@ -38,6 +38,7 @@ class Piece(object):
         if not self.is_full and not self.blocks[index].state == State.FULL:
             self.blocks[index].data = data
             self.blocks[index].state = State.FULL
+            self.pieces_manager.completed_size += self.blocks[index].block_size
 
     async def get_block(self, block_offset, block_length):
         if self.custom_storage:

@@ -26,21 +26,28 @@ class AsyncTCPClient:
 
     async def recv(self, buffer_size=-1):
         if self.reader is not None:
-            try:
-                first_byte = await asyncio.wait_for(self.reader.read(1), 0.5)
-                if not first_byte:
-                    return b''
-                data = first_byte + await asyncio.wait_for(self.reader.read(buffer_size - 1), 2)
-                return data
-            except asyncio.TimeoutError:
-                # await self.stdout.WARNING("Read from socket timeout in PeersManager")
+            # try:
+            first_byte = await asyncio.wait_for(self.reader.read(1), 0.5)
+            if not first_byte:
                 return b''
+            data = first_byte + await asyncio.wait_for(self.reader.read(buffer_size - 1), 2)
+            return data
+            # except asyncio.TimeoutError:
+                # print("Read from socket timeout in PeersManager")
+                # return b''
         else:
             raise Exception("AsyncTCPClient not connected yet.")
 
     async def close(self):
         if self.writer is not None:
-            self.writer.close()
-            await self.writer.wait_closed()
+            try:
+                self.writer.close()
+                await asyncio.wait_for(self.writer.wait_closed(), self.timeout)
+            except ConnectionResetError:
+                # print("Connection reset by peer when close async tcp")
+                return
+            except BrokenPipeError:
+                # print("Remove peer broken pipe error when close async tcp")
+                return
         else:
             raise Exception("AsyncTCPClient not connected yet.")

@@ -20,6 +20,9 @@ class LoggerBase:
     def DEBUG(self, *args):
         pass
 
+    def PROGRESS(self, *args):
+        pass
+
     def MUST(self, *args):
         raise LoggerMustException
 
@@ -45,6 +48,9 @@ class Logger(LoggerBase):
 
     def DEBUG(self, *args):
         print("DEBUG:", *args)
+
+    def PROGRESS(self, *args):
+        print("PROGRESS:", *args)
 
     def MUST(self, *args):
         print(*args)

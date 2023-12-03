@@ -39,6 +39,7 @@ class Peer(object):
             'peer_choking': True,
             'peer_interested': False,
         }
+        self.timeout_num = 0
 
 
     def __hash__(self):
@@ -75,17 +76,16 @@ class Peer(object):
         except BrokenPipeError:
             self.healthy = False
             await self.stdout.WARNING("Broken pipe. Sending message to a closed peer.")
-        except OSError as e:
-            # Socket closed in Peer
+        except OSError:
             self.healthy = False
-            await self.stdout.WARNING(e)
+            await self.stdout.WARNING("Socket closed in Peer")
         except Exception as e:
             self.healthy = False
             await self.stdout.ERROR("Failed to send to peer:", e)
 
     def is_eligible(self):
         now = time.time()
-        return (now - self.last_call) > 0.1
+        return (now - self.last_call) > 0.2
 
     def has_piece(self, index):
         return self.bit_field[index]
@@ -165,7 +165,11 @@ class Peer(object):
         :type message: message.Piece
         """
         # await self.stdout.DEBUG('handle_piece - %s' % self.ip)
-        await self.pieces_manager.receive_block_piece(message.piece_index, message.block_offset, message.block)
+        await self.pieces_manager.receive_block_piece(
+            piece_index=message.piece_index,
+            piece_offset=message.block_offset,
+            piece_data=message.block
+        )
 
     async def handle_cancel(self):
         await self.stdout.DEBUG('handle_cancel - %s' % self.ip)
