@@ -50,7 +50,7 @@ class Client:
             output += '%d. \"%s\" %.2fMB\n' % (i + 2, file_info['path'], file_info['length'] / 1024 / 1024)
         await self.stdout.MUST(output.strip())
         if stdin:
-            selection = await stdin('Select files: ').split()
+            selection = (await stdin('Select files: ')).split()
         else:
             selection = input('Select files: ').split()
         result = []
