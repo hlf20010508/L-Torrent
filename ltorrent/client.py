@@ -7,7 +7,6 @@ from ltorrent.pieces_manager import PiecesManager, ExitSelectionException
 from ltorrent.torrent import Torrent
 from ltorrent.message import Request
 from ltorrent.log import Logger
-from ltorrent.block import State
 
 
 class Client(Thread):

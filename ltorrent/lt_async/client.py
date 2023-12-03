@@ -6,7 +6,6 @@ from ltorrent.lt_async.peers_manager import PeersPool, PeersScraper, PeersManage
 from ltorrent.lt_async.pieces_manager import PiecesManager, ExitSelectionException
 from ltorrent.torrent import Torrent
 from ltorrent.lt_async.message import Request
-from ltorrent.block import State
 from ltorrent.lt_async.log import Logger
 
 
