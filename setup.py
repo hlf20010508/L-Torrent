@@ -39,5 +39,5 @@ setup(
     long_description=readme,
     package_data={"": ["LICENSE", "README.md"]},
     include_package_data=True,
-    python_requires=">3.6",
+    python_requires=">=3.8",
 )
