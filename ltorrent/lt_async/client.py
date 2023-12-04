@@ -199,7 +199,7 @@ class Client:
 
     async def display_progression(self):
         now = time.time()
-        if (now - self.last_update) > 60:
+        if (now - self.last_update) > 300:
             if self.retries > 3:
                 self._exit_threads()
                 await self.stdout.INFO('Too many retries')

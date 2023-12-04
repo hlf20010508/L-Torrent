@@ -6,7 +6,8 @@ from ltorrent.lt_async.piece import Piece
 from ltorrent.lt_async.log import Logger
 from ltorrent.block import State
 
-GROUP_PIECES_NUM = 32
+# 8 * 1024 * 1024
+GROUP_MAX_SIZE = 8388608
 
 class ExitSelectionException(Exception):
     pass
@@ -15,7 +16,6 @@ class PiecesManager(object):
     def __init__(self, torrent, selection, custom_storage=None, stdout=None, sequential=False):
         self.torrent = torrent
         self.number_of_pieces = int(torrent.number_of_pieces)
-        self.number_of_group = math.ceil(self.number_of_pieces / GROUP_PIECES_NUM)
         self.bitfield = bitstring.BitArray(self.number_of_pieces)
         self.custom_storage = custom_storage
         if stdout:
@@ -24,6 +24,8 @@ class PiecesManager(object):
             self.stdout = Logger()
         self.sequential = sequential
         self.pieces = self._generate_pieces()
+        self.group_pieces_num = GROUP_MAX_SIZE // self.pieces[0].piece_size
+        self.number_of_group = math.ceil(self.number_of_pieces / self.group_pieces_num)
         self.selection = selection
         self.total_active_size = 0
         self.files = self._load_files()
@@ -57,7 +59,7 @@ class PiecesManager(object):
                 self.completed_pieces +=1
 
     async def receive_block_piece_seq(self, piece_index, piece_offset, piece_data):
-        group_index = piece_index // GROUP_PIECES_NUM
+        group_index = piece_index // self.group_pieces_num
         if self.pieces[piece_index].is_full:
             return
         self.pieces[piece_index].set_block(offset=piece_offset, data=piece_data)
@@ -92,7 +94,7 @@ class PiecesManager(object):
         return block_list
 
     def get_group_pieces(self, group_index):
-        return self.pieces[group_index * GROUP_PIECES_NUM : (group_index + 1) * GROUP_PIECES_NUM]
+        return self.pieces[group_index * self.group_pieces_num : (group_index + 1) * self.group_pieces_num]
 
     async def valid_group_pieces(self, group_index):
         for piece in self.get_group_pieces(group_index):
