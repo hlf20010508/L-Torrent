@@ -15,8 +15,7 @@ class Piece(object):
         self.pieces_manager = pieces_manager
         self.is_full: bool = False
         self.files = []
-        self.raw_data: bytes = b''
-        self.number_of_blocks: int = int(math.ceil(float(piece_size) / BLOCK_SIZE))
+        self.number_of_blocks: int = math.ceil(piece_size / BLOCK_SIZE)
         self.blocks: list[Block] = []
         self.custom_storage = custom_storage
         self.is_active = 0
@@ -33,7 +32,7 @@ class Piece(object):
                 self.blocks[i] = Block()
 
     def set_block(self, offset, data):
-        index = int(offset / BLOCK_SIZE)
+        index = offset // BLOCK_SIZE
 
         if not self.is_full and not self.blocks[index].state == State.FULL:
             self.blocks[index].data = data
@@ -93,18 +92,16 @@ class Piece(object):
             return False
 
         self.is_full = True
-        self.raw_data = data
         if self.custom_storage:
-            await self.custom_storage.write(self.files, self.raw_data)
+            await self.custom_storage.write(self.files, data)
         else:
-            await self._write_piece_on_disk()
-        self.pieces_manager.update_bitfield(self.piece_index)
+            await self._write_piece_on_disk(data)
         self.clear()
+        self.pieces_manager.update_bitfield(self.piece_index)
 
         return True
 
     def _init_blocks(self):
-        self.raw_data = b''
         self.blocks = []
 
         if self.number_of_blocks > 1:
@@ -119,21 +116,10 @@ class Piece(object):
             self.blocks.append(Block(block_size=int(self.piece_size)))
 
     def clear(self):
-        self.raw_data = b''
-        self.blocks = []
+        for block in self.blocks:
+            block.data = b''
 
-        if self.number_of_blocks > 1:
-            for _ in range(self.number_of_blocks):
-                self.blocks.append(Block(state=State.FULL))
-
-            # Last block of last piece, the special block
-            if (self.piece_size % BLOCK_SIZE) > 0:
-                self.blocks[self.number_of_blocks - 1].block_size = self.piece_size % BLOCK_SIZE
-
-        else:
-            self.blocks.append(Block(state=State.FULL, block_size=int(self.piece_size)))
-
-    async def _write_piece_on_disk(self):
+    async def _write_piece_on_disk(self, data):
         for file in self.files:
             path_file = file["path"]
             file_offset = file["fileOffset"]
@@ -149,7 +135,7 @@ class Piece(object):
                 return
 
             f.seek(file_offset)
-            f.write(self.raw_data[piece_offset:piece_offset + length])
+            f.write(data[piece_offset:piece_offset + length])
             f.close()
 
     def _merge_blocks(self):

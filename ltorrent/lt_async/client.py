@@ -1,10 +1,11 @@
 __author__ = 'alexisgallepe, L-ING'
 
 import time
-from asyncio import sleep
+import asyncio
 from ltorrent.lt_async.peers_manager import PeersPool, PeersScraper, PeersManager
-from ltorrent.lt_async.pieces_manager import PiecesManager, ExitSelectionException
+from ltorrent.lt_async.pieces_manager import PiecesManager
 from ltorrent.torrent import Torrent
+from ltorrent.block import State, BLOCK_SIZE
 from ltorrent.lt_async.message import Request
 from ltorrent.lt_async.log import Logger
 
@@ -13,7 +14,7 @@ class Client:
     last_percentage_completed = -1
     last_log_line = ""
 
-    def __init__(self, port, timeout=2, custom_storage=None, stdout=None):
+    def __init__(self, port, timeout=2, custom_storage=None, stdout=None, sequential=False):
         self.port = port
         self.timeout = timeout
         self.custom_storage = custom_storage
@@ -21,6 +22,7 @@ class Client:
             self.stdout = stdout
         else:
             self.stdout = Logger()
+        self.sequential = sequential
         self.is_active = True
 
         self.torrent = {}
@@ -82,6 +84,7 @@ class Client:
                 selection=self.selection,
                 custom_storage=self.custom_storage,
                 stdout=self.stdout,
+                sequential=self.sequential
             )
             self.peers_manager = PeersManager(
                 torrent=self.torrent,
@@ -108,43 +111,79 @@ class Client:
 
             self.last_update = time.time()
 
-            while not self.pieces_manager.all_pieces_completed() and self.is_active:
-                if not self.peers_manager.has_unchoked_peers():
-                    await self.stdout.INFO("No unchocked peers")
-                    await sleep(1)
-                    continue
+            if not self.sequential:
+                while not self.pieces_manager.all_pieces_completed() and self.is_active:
+                    for piece, block_index, block in self.pieces_manager.get_unfull_blocks():
+                        if not self.is_active:
+                            break
+                        
+                        if not self.peers_manager.has_unchoked_peers():
+                            await self.stdout.INFO("No unchocked peers")
+                            await asyncio.sleep(1)
+                            continue
+                        
+                        piece.update_block_status()
 
-                for piece in self.pieces_manager.pieces:
-                    index = piece.piece_index
+                        if block.state == State.FREE:
+                            block.state = State.PENDING
+                            block.last_seen = time.time()
 
-                    if not self.pieces_manager.pieces[index].is_active:
-                        continue
+                        while True:
+                            if not self.is_active:
+                                break
+                            peer = self.peers_manager.get_random_peer_having_piece(index=piece.piece_index)
+                            if peer:
+                                break
+                            else:
+                                await asyncio.sleep(0.2)
 
-                    if self.pieces_manager.pieces[index].is_full:
-                        continue
+                        piece_data = Request(
+                            piece_index=piece.piece_index,
+                            block_offset=block_index * BLOCK_SIZE,
+                            block_length=block.block_size
+                        ).to_bytes()
+                        await peer.send_to_peer(msg=piece_data)
+                        await self.display_progression()
 
-                    peer = self.peers_manager.get_random_peer_having_piece(index=index)
-                    if not peer:
-                        continue
+            else:
+                for group_index in range(self.pieces_manager.number_of_group):
+                    if not self.is_active:
+                        break
+                    while len(unfull_blocks := self.pieces_manager.get_group_unfull_blocks(group_index)) > 0:
+                        if not self.is_active:
+                            break
+                        for piece, block_index, block in unfull_blocks:
+                            if not self.is_active:
+                                break
 
-                    self.pieces_manager.pieces[index].update_block_status()
+                            if not self.peers_manager.has_unchoked_peers():
+                                await self.stdout.INFO("No unchocked peers")
+                                await asyncio.sleep(1)
+                                continue
 
-                    data = self.pieces_manager.pieces[index].get_empty_block()
-                    if not data:
-                        continue
+                            piece.update_block_status()
 
-                    piece_index, block_offset, block_length = data
-                    piece_data = Request(
-                        piece_index=piece_index,
-                        block_offset=block_offset,
-                        block_length=block_length
-                    ).to_bytes()
-                    await peer.send_to_peer(msg=piece_data)
+                            if block.state == State.FREE:
+                                block.state = State.PENDING
+                                block.last_seen = time.time()
 
-                await self.display_progression()
+                            while True:
+                                if not self.is_active:
+                                    break
+                                peer = self.peers_manager.get_random_peer_having_piece(index=piece.piece_index)
+                                if peer:
+                                    break
+                                else:
+                                    await asyncio.sleep(0.2)
 
-                await sleep(0.2)
-            
+                            piece_data = Request(
+                                piece_index=piece.piece_index,
+                                block_offset=block_index * BLOCK_SIZE,
+                                block_length=block.block_size
+                            ).to_bytes()
+                            await peer.send_to_peer(msg=piece_data)
+                            await self.display_progression()
+
             if self.is_active:
                 await self.display_progression()
                 self._exit_threads()
@@ -191,16 +230,9 @@ class Client:
             self.last_update = time.time()
             return
 
-        # new_progression = 0
-        # for i in range(self.pieces_manager.number_of_pieces):
-        #     for j in range(self.pieces_manager.pieces[i].number_of_blocks):
-        #             if self.pieces_manager.pieces[i].blocks[j].state == State.FULL:
-        #                 new_progression += self.pieces_manager.pieces[i].blocks[j].block_size
-
         number_of_peers = self.peers_manager.unchoked_peers_count()
-        # percentage_completed = (self.pieces_manager.completed_pieces / self.pieces_manager.number_of_active_pieces) * 100
-        # percentage_completed = (new_progression / self.torrent.total_length) * 100
-        percentage_completed = (self.pieces_manager.completed_size / self.torrent.total_length) * 100
+
+        percentage_completed = (self.pieces_manager.completed_size / self.pieces_manager.total_active_size) * 100
 
         current_log_line = "Connected peers: %d - %.2f%% completed | %d/%d pieces" % (
             number_of_peers,

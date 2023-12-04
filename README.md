@@ -12,6 +12,7 @@ A pure python torrent client based on PyTorrent
 - Support custom [stdout](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdout.py).
 - Support [running as a thread](#run-as-a-thread).
 - Support [asynchrony](https://github.com/hlf20010508/LTorrent/tree/master/examples/async.py).
+- Support sequential download.
 
 See examples [here](https://github.com/hlf20010508/LTorrent/tree/master/examples).
 
@@ -29,9 +30,9 @@ Range supported, linked by `-`, eg: `4 6-10 12 14-20`.
 ## Installation
 ```sh
 # using pip
-pip install git+https://github.com/hlf20010508/LTorrent.git@1.3.0
+pip install git+https://github.com/hlf20010508/LTorrent.git@1.4.0
 # using pipenv
-pipenv install git+https://github.com/hlf20010508/LTorrent.git@1.3.0#egg=LTorrent
+pipenv install git+https://github.com/hlf20010508/LTorrent.git@1.4.0#egg=LTorrent
 ```
 
 ## Start

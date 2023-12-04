@@ -54,7 +54,7 @@ class PeersPool:
 
 
 class HTTPScraper(Thread):
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=1, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
         Thread.__init__(self)
         self.torrent = torrent
         self.tracker = tracker
@@ -129,7 +129,7 @@ class HTTPScraper(Thread):
 
 
 class UDPScraper(Thread):
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=1, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
         Thread.__init__(self)
         self.torrent = torrent
         self.tracker = tracker
@@ -182,7 +182,10 @@ class UDPScraper(Thread):
                 return
 
             tracker_connection_output = UdpTrackerConnection()
-            tracker_connection_output.from_bytes(payload=response)
+            try:
+                tracker_connection_output.from_bytes(payload=response)
+            except struct.error:
+                self.stdout.WARNING("Unpack failed for tracker_connection_output: ", tracker)
 
             tracker_announce_input = UdpTrackerAnnounce(
                 info_hash=torrent.info_hash,
@@ -201,7 +204,10 @@ class UDPScraper(Thread):
                 return
 
             tracker_announce_output = UdpTrackerAnnounceOutput()
-            tracker_announce_output.from_bytes(payload=response)
+            try:
+                tracker_announce_output.from_bytes(payload=response)
+            except struct.error:
+                self.stdout.WARNING("Unpack failed for tracker_announce_output: ", tracker)
 
             for ip, port in tracker_announce_output.list_sock_addr:
                 sock_addr = SockAddr(ip=ip, port=port)
@@ -269,7 +275,7 @@ class UDPScraper(Thread):
 
 
 class PeersConnector(Thread):
-    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, timeout=1, stdout=None):
+    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, timeout=2, stdout=None):
         Thread.__init__(self)
         self.torrent = torrent
         self.sock_addr = sock_addr
@@ -318,7 +324,7 @@ class PeersConnector(Thread):
 
 
 class PeersScraper():
-    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, port=6881, timeout=1, stdout=None):
+    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, port=6881, timeout=2, stdout=None):
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool

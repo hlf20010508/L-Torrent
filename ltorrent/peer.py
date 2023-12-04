@@ -42,7 +42,7 @@ class Peer(object):
     def __hash__(self):
         return "%s:%d" % (self.ip, self.port)
 
-    def connect(self, timeout=1):
+    def connect(self, timeout=2):
         try:
             self.socket = socket.create_connection((self.ip, self.port), timeout=timeout)
             self.socket.setblocking(False)
@@ -158,11 +158,18 @@ class Peer(object):
         """
         :type message: message.Piece
         """
-        self.pieces_manager.receive_block_piece(
-            piece_index=message.piece_index,
-            piece_offset=message.block_offset,
-            piece_data=message.block
-        )
+        if self.pieces_manager.sequential:
+            self.pieces_manager.receive_block_piece_seq(
+                piece_index=message.piece_index,
+                piece_offset=message.block_offset,
+                piece_data=message.block
+            )
+        else:
+            self.pieces_manager.receive_block_piece(
+                piece_index=message.piece_index,
+                piece_offset=message.block_offset,
+                piece_data=message.block
+            )
 
     def handle_cancel(self):
         self.stdout.DEBUG('handle_cancel - %s' % self.ip)

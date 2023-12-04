@@ -53,9 +53,6 @@ class Peer(object):
         except asyncio.TimeoutError:
             await self.stdout.WARNING("Connection timeout in Peer.")
             return False
-        # except ConnectionRefusedError:
-        #     await self.stdout.WARNING("Connection refused in Peer.")
-        #     return False
         except OSError as e:
             # Network is unreachable
             await self.stdout.WARNING(e)
@@ -165,11 +162,18 @@ class Peer(object):
         :type message: message.Piece
         """
         # await self.stdout.DEBUG('handle_piece - %s' % self.ip)
-        await self.pieces_manager.receive_block_piece(
-            piece_index=message.piece_index,
-            piece_offset=message.block_offset,
-            piece_data=message.block
-        )
+        if self.pieces_manager.sequential:
+            await self.pieces_manager.receive_block_piece_seq(
+                piece_index=message.piece_index,
+                piece_offset=message.block_offset,
+                piece_data=message.block
+            )
+        else:
+            await self.pieces_manager.receive_block_piece(
+                piece_index=message.piece_index,
+                piece_offset=message.block_offset,
+                piece_data=message.block
+            )
 
     async def handle_cancel(self):
         await self.stdout.DEBUG('handle_cancel - %s' % self.ip)

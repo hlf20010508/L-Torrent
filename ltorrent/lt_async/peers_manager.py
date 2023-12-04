@@ -189,7 +189,10 @@ class UDPScraper:
                     return
 
                 tracker_connection_output = UdpTrackerConnection()
-                tracker_connection_output.from_bytes(payload=response)
+                try:
+                    tracker_connection_output.from_bytes(payload=response)
+                except struct.error:
+                    await self.stdout.WARNING("Unpack failed for tracker_connection_output: ", tracker)
 
                 tracker_announce_input = UdpTrackerAnnounce(
                     info_hash=torrent.info_hash,
@@ -207,7 +210,10 @@ class UDPScraper:
                     return
 
                 tracker_announce_output = UdpTrackerAnnounceOutput()
-                tracker_announce_output.from_bytes(payload=response)
+                try:
+                    tracker_announce_output.from_bytes(payload=response)
+                except struct.error:
+                    await self.stdout.WARNING("Unpack failed for tracker_announce_output: ", tracker)
 
                 for ip, port in tracker_announce_output.list_sock_addr:
                     sock_addr = SockAddr(ip=ip, port=port)

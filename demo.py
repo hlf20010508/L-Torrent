@@ -5,9 +5,12 @@ if __name__ == '__main__':
     port = 8080
 
     client = Client(
-        port=port
+        port=port,
+        sequential=True
     )
 
     client.load(magnet_link=magnet_link)
-    client.select_file()
+    client.list_file()
+    selection = input("Select file: ")
+    client.select_file(selection=selection)
     client.start()
