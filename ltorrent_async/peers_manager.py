@@ -10,7 +10,7 @@ from urllib.parse import urlparse, quote_from_bytes
 import ipaddress
 import queue
 import urllib3
-from ltorrent.lt_async.message import (
+from ltorrent_async.message import (
     UdpTrackerConnection,
     UdpTrackerAnnounce,
     UdpTrackerAnnounceOutput,
@@ -28,10 +28,10 @@ from ltorrent.lt_async.message import (
     Port,
     KeepAlive
 )
-from ltorrent.lt_async.peer import Peer
-from ltorrent.lt_async.log import Logger
-from ltorrent.lt_async.async_udp import AsyncUDPClient
-import ltorrent.lt_async._rewrite
+from ltorrent_async.peer import Peer
+from ltorrent_async.log import Logger
+from ltorrent_async.async_udp import AsyncUDPClient
+import ltorrent_async._rewrite
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

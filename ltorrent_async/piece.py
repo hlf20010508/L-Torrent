@@ -3,8 +3,8 @@ __author__ = 'alexisgallepe, L-ING'
 import hashlib
 import math
 import time
-from ltorrent.block import Block, BLOCK_SIZE, State
-from ltorrent.lt_async.log import Logger
+from ltorrent_async.block import Block, BLOCK_SIZE, State
+from ltorrent_async.log import Logger
 
 
 class Piece(object):

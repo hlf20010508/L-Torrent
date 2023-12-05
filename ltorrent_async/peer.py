@@ -4,7 +4,7 @@ import time
 import asyncio
 import struct
 import bitstring
-from ltorrent.lt_async.message import (
+from ltorrent_async.message import (
     WrongMessageException,
     UnChoke,
     Interested,
@@ -12,8 +12,8 @@ from ltorrent.lt_async.message import (
     KeepAlive,
     MessageDispatcher
 )
-from ltorrent.lt_async.async_tcp import AsyncTCPClient
-from ltorrent.lt_async.log import Logger
+from ltorrent_async.async_tcp import AsyncTCPClient
+from ltorrent_async.log import Logger
 
 
 class Peer(object):

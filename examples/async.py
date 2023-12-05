@@ -2,8 +2,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import asyncio
-from ltorrent.lt_async.client import Client, CustomStorage
-from ltorrent.lt_async.log import Logger
+from ltorrent_async.client import Client, CustomStorage
+from ltorrent_async.log import Logger
 
 class MyLogger(Logger):
     def __init__(self):
@@ -68,7 +68,7 @@ async def main():
         custom_storage=custom_storage
     )
 
-    client.load(magnet_link=magnet_link)
+    await client.load(magnet_link=magnet_link)
     await client.list_file()
     selection = input("Select file: ")
     await client.select_file(selection=selection)

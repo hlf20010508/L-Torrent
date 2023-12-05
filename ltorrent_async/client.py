@@ -2,12 +2,12 @@ __author__ = 'alexisgallepe, L-ING'
 
 import time
 import asyncio
-from ltorrent.lt_async.peers_manager import PeersPool, PeersScraper, PeersManager
-from ltorrent.lt_async.pieces_manager import PiecesManager
-from ltorrent.torrent import Torrent
-from ltorrent.block import State, BLOCK_SIZE
-from ltorrent.lt_async.message import Request
-from ltorrent.lt_async.log import Logger
+from ltorrent_async.peers_manager import PeersPool, PeersScraper, PeersManager
+from ltorrent_async.pieces_manager import PiecesManager
+from ltorrent_async.torrent import Torrent
+from ltorrent_async.block import State, BLOCK_SIZE
+from ltorrent_async.message import Request
+from ltorrent_async.log import Logger
 
 
 class Client:
@@ -35,11 +35,17 @@ class Client:
         self.last_update = 0
         self.retries = 0
 
-    def load(self, torrent_path='', magnet_link=''):
+    async def load(self, torrent_path='', magnet_link=''):
         if torrent_path:
-            self.torrent = Torrent(custom_storage=self.custom_storage).load_from_path(path=torrent_path)
+            self.torrent = Torrent(
+                custom_storage=self.custom_storage,
+                stdout=self.stdout
+            ).load_from_path(path=torrent_path)
         elif magnet_link:
-            self.torrent = Torrent(custom_storage=self.custom_storage).load_from_magnet(magnet_link=magnet_link)
+            self.torrent = await Torrent(
+                custom_storage=self.custom_storage,
+                stdout=self.stdout
+            ).load_from_magnet(magnet_link=magnet_link)
         else:
             raise Exception("Neither torrent path nor magnet link is provided.")
 

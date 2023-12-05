@@ -5,7 +5,7 @@ import socket
 import struct
 from struct import pack, unpack
 import bitstring
-from ltorrent.lt_async.log import Logger
+from ltorrent_async.log import Logger
 
 HANDSHAKE_PSTR_V1 = b"BitTorrent protocol"
 HANDSHAKE_PSTR_LEN = len(HANDSHAKE_PSTR_V1)

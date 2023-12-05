@@ -12,7 +12,7 @@ A pure python torrent client based on PyTorrent
 - Support custom [stdout](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdout.py).
 - Support [running as a thread](#run-as-a-thread).
 - Support [asynchrony](https://github.com/hlf20010508/LTorrent/tree/master/examples/async.py).
-- Support sequential download.
+- Support [sequential download](https://github.com/hlf20010508/LTorrent/tree/master/examples/sequential.py).
 
 See examples [here](https://github.com/hlf20010508/LTorrent/tree/master/examples).
 
@@ -28,11 +28,26 @@ Input number of files, seperated by `Space`, eg: `2 5 7`.
 Range supported, linked by `-`, eg: `4 6-10 12 14-20`.
 
 ## Installation
+### ltorrent
+pip
 ```sh
-# using pip
-pip install git+https://github.com/hlf20010508/LTorrent.git@1.4.0
-# using pipenv
-pipenv install git+https://github.com/hlf20010508/LTorrent.git@1.4.0#egg=LTorrent
+pip install git+https://github.com/hlf20010508/LTorrent.git@1.5.0#subdirectory=ltorrent
+```
+pipenv
+```sh
+# add this to Pipfile
+ltorrent = {ref = "1.5.0", git = "git+https://github.com/hlf20010508/LTorrent.git", subdirectory = "ltorrent"}
+```
+
+### ltorrent_async
+pip
+```sh
+pip install git+https://github.com/hlf20010508/LTorrent.git@1.5.0#subdirectory=ltorrent_async
+```
+pipenv
+```sh
+# add this to Pipfile
+ltorrent-async = {ref = "1.5.0", git = "git+https://github.com/hlf20010508/LTorrent.git", subdirectory = "ltorrent_async"}
 ```
 
 ## Start

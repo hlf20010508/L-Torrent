@@ -2,9 +2,9 @@ __author__ = 'alexisgallepe, L-ING'
 
 import math
 import bitstring
-from ltorrent.lt_async.piece import Piece
-from ltorrent.lt_async.log import Logger
-from ltorrent.block import State
+from ltorrent_async.piece import Piece
+from ltorrent_async.log import Logger
+from ltorrent_async.block import State
 
 # 8 * 1024 * 1024
 GROUP_MAX_SIZE = 8388608

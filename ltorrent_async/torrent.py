@@ -6,9 +6,9 @@ import random
 import string
 from bcoding import bencode, bdecode
 import os
-import requests
-from ltorrent.tracker import TRACKERS_LIST
-from ltorrent.log import Logger
+import aiohttp
+from ltorrent_async.tracker import TRACKERS_LIST
+from ltorrent_async.log import Logger
 
 class Magnet2TorrentException(Exception):
     pass
@@ -46,14 +46,17 @@ class Torrent(object):
 
         return self
 
-    def load_from_magnet(self, magnet_link):
+    async def load_from_magnet(self, magnet_link):
         server_url = "https://magnet2torrent.com/upload/"
         headers={'User-Agent': 'Mozilla/5.0 (Platform; Security; OS-or-CPU; Localization; rv:1.4) Gecko/20030624 Netscape/7.1 (ax)'}
-        response = requests.post(url=server_url, headers=headers, data={'magnet': magnet_link}, verify=False, timeout=10)
-        try:
-            contents = bdecode(response.content)
-        except TypeError:
-            raise Magnet2TorrentException("Failed to decode response content from magnet2torrent.com")
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(server_url, data={'magnet': magnet_link}, headers=headers, ssl=False) as response:
+                try:
+                    contents = bdecode(await response.content.read())
+                except TypeError:
+                    raise Magnet2TorrentException("Failed to decode response content from magnet2torrent.com")
+
         return self.load(contents=contents)
     
     def load_from_path(self, path):

@@ -38,9 +38,15 @@ class Client(Thread):
 
     def load(self, torrent_path='', magnet_link=''):
         if torrent_path:
-            self.torrent = Torrent(custom_storage=self.custom_storage).load_from_path(path=torrent_path)
+            self.torrent = Torrent(
+                custom_storage=self.custom_storage,
+                stdout=self.stdout
+            ).load_from_path(path=torrent_path)
         elif magnet_link:
-            self.torrent = Torrent(custom_storage=self.custom_storage).load_from_magnet(magnet_link=magnet_link)
+            self.torrent = Torrent(
+                custom_storage=self.custom_storage,
+                stdout=self.stdout
+            ).load_from_magnet(magnet_link=magnet_link)
         else:
             raise Exception("Neither torrent path nor magnet link is provided.")
 
