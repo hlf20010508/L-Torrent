@@ -84,6 +84,8 @@ class HTTPScraper:
                             except TypeError:
                                 await self.stdout.WARNING("Failed to decode response content from tracker:", tracker)
                                 return
+                    except aiohttp.client_exceptions.ClientOSError:
+                        await self.stdout.WARNING("Connection reset by peers in http scraper:", tracker)
                     except ConnectionRefusedError:
                         await self.stdout.WARNING("Failed to visit tracker in http scraper:", tracker)
                         return
