@@ -30,7 +30,6 @@ from ltorrent.message import (
     KeepAlive
 )
 from ltorrent.peer import Peer
-from ltorrent.log import Logger
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -54,17 +53,14 @@ class PeersPool:
 
 
 class HTTPScraper(Thread):
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, stdout, port=6881, timeout=2):
         Thread.__init__(self)
         self.torrent = torrent
         self.tracker = tracker
         self.peers_pool = peers_pool
         self.port = port
         self.timeout = timeout
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
     
     def run(self):
         THREAD_SEMA.acquire()
@@ -129,17 +125,14 @@ class HTTPScraper(Thread):
 
 
 class UDPScraper(Thread):
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, stdout, port=6881, timeout=2):
         Thread.__init__(self)
         self.torrent = torrent
         self.tracker = tracker
         self.peers_pool = peers_pool
         self.port = port
         self.timeout = timeout
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
 
     def run(self):
         THREAD_SEMA.acquire()
@@ -275,7 +268,7 @@ class UDPScraper(Thread):
 
 
 class PeersConnector(Thread):
-    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, timeout=2, stdout=None):
+    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, stdout, timeout=2):
         Thread.__init__(self)
         self.torrent = torrent
         self.sock_addr = sock_addr
@@ -284,10 +277,7 @@ class PeersConnector(Thread):
         self.pieces_manager = pieces_manager
         self.del_queue = del_queue
         self.timeout = timeout
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
     
     def run(self):
         THREAD_SEMA.acquire()
@@ -296,9 +286,9 @@ class PeersConnector(Thread):
                 number_of_pieces=int(self.torrent.number_of_pieces),
                 peers_manager=self.peers_manager,
                 pieces_manager=self.pieces_manager,
+                stdout=self.stdout,
                 ip=self.sock_addr.ip,
                 port=self.sock_addr.port,
-                stdout=self.stdout
             )
             if not new_peer.connect(timeout=self.timeout) or not self.do_handshake(new_peer):
                 self.del_queue.put(new_peer.__hash__())
@@ -324,19 +314,16 @@ class PeersConnector(Thread):
 
 
 class PeersScraper():
-    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, port=6881, timeout=2, stdout=None):
+    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, stdout, port=6881, timeout=2):
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool
         self.peers_manager = peers_manager
         self.pieces_manager = pieces_manager
+        self.stdout = stdout
         self.port = port
         self.timeout = timeout
         self.queue = queue.Queue()
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
     
     def start(self):
         self.stdout.INFO("Updating peers")
@@ -347,9 +334,9 @@ class PeersScraper():
                     torrent=self.torrent,
                     tracker=tracker,
                     peers_pool=self.peers_pool,
+                    stdout=self.stdout,
                     port=self.port,
                     timeout=self.timeout,
-                    stdout=self.stdout
                 )
                 task_list.append(scraper)
                 scraper.start()
@@ -358,9 +345,9 @@ class PeersScraper():
                     torrent=self.torrent,
                     tracker=tracker,
                     peers_pool=self.peers_pool,
+                    stdout=self.stdout,
                     port=self.port,
                     timeout=self.timeout,
-                    stdout=self.stdout
                 )
                 task_list.append(scraper)
                 scraper.start()
@@ -380,8 +367,8 @@ class PeersScraper():
                 peers_manager=self.peers_manager,
                 pieces_manager=self.pieces_manager,
                 del_queue=self.queue,
+                stdout=self.stdout,
                 timeout=self.timeout,
-                stdout=self.stdout
             )
             task_list.append(connector)
             connector.start()
@@ -399,17 +386,14 @@ class PeersScraper():
 
 
 class PeersManager(Thread):
-    def __init__(self, torrent, pieces_manager, peers_pool, stdout=None):
+    def __init__(self, torrent, pieces_manager, peers_pool, stdout):
         Thread.__init__(self)
         self.torrent = torrent
         self.pieces_manager = pieces_manager
         self.peers_pool = peers_pool
         self.pieces_by_peer = [[0, []] for _ in range(pieces_manager.number_of_pieces)]
         self.is_active = True
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
 
     def peer_requests_piece(self, request=None, peer=None):
         if not request or not peer:
@@ -486,6 +470,13 @@ class PeersManager(Thread):
 
                     try:
                         payload = self._read_from_socket(socket)
+                        peer.timeout_num = 0
+                    except socket.timeout:
+                        peer.timeout_num += 1
+                        if peer.timeout_num > 5:
+                            self.stdout.WARNING("Peer too many timeout, removed")
+                            self.remove_peer(peer=peer)
+                        continue
                     except ConnectionResetError:
                         self.stdout.WARNING("Connection reset by peer in PeersManager")
                         self.remove_peer(peer=peer)

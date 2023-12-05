@@ -8,13 +8,12 @@ from bcoding import bencode, bdecode
 import os
 import requests
 from ltorrent.tracker import TRACKERS_LIST
-from ltorrent.log import Logger
 
 class Magnet2TorrentException(Exception):
     pass
 
 class Torrent(object):
-    def __init__(self, custom_storage=None, stdout=Logger):
+    def __init__(self, storage, stdout):
         self.torrent_file = {}
         self.total_length: int = 0
         self.piece_length: int = 0
@@ -24,11 +23,8 @@ class Torrent(object):
         self.announce_list = []
         self.file_names = []
         self.number_of_pieces: int = 0
-        self.custom_storage = custom_storage
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.storage = storage
+        self.stdout = stdout
 
     def load(self, contents):
         self.torrent_file = contents
@@ -64,13 +60,15 @@ class Torrent(object):
     def init_files(self):
         root = self.torrent_file['info']['name']
         if 'files' in self.torrent_file['info']:
-            if not self.custom_storage and not os.path.exists(root):
-                os.mkdir(path=root, mode=0o0766 )
+            self.storage.create_root_dir(root)
+
             for file in self.torrent_file['info']['files']:
                 path_file = os.path.join(root, *file["path"])
-                if not self.custom_storage and not os.path.exists(path=os.path.dirname(path_file)):
-                    os.makedirs(name=os.path.dirname(path_file))
+
+                self.storage.create_sub_dir(path_file)
+
                 self.file_names.append({"path": path_file , "length": file["length"]})
+                
                 self.total_length += file["length"]
         else:
             self.file_names.append({"path": root , "length": self.torrent_file['info']['length']})

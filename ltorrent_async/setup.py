@@ -29,7 +29,7 @@ setup(
         "bcoding",
         "bitstring",
         "ipaddress",
-        "aiohttp",
+        "aiohttp==3.9.1",
     ],
     license="Unlicense license",
     classifiers=[

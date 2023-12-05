@@ -5,7 +5,6 @@ import socket
 import struct
 from struct import pack, unpack
 import bitstring
-from ltorrent_async.log import Logger
 
 HANDSHAKE_PSTR_V1 = b"BitTorrent protocol"
 HANDSHAKE_PSTR_LEN = len(HANDSHAKE_PSTR_V1)
@@ -18,12 +17,9 @@ class WrongMessageException(Exception):
 
 class MessageDispatcher:
 
-    def __init__(self, payload, stdout=None):
+    def __init__(self, payload, stdout):
         self.payload = payload
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
 
     async def dispatch(self):
         try:

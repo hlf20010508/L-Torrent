@@ -13,11 +13,10 @@ from ltorrent_async.message import (
     MessageDispatcher
 )
 from ltorrent_async.async_tcp import AsyncTCPClient
-from ltorrent_async.log import Logger
 
 
 class Peer(object):
-    def __init__(self, number_of_pieces, ip, peers_manager, pieces_manager, port=6881, stdout=None):
+    def __init__(self, number_of_pieces, peers_manager, pieces_manager, stdout, ip, port=6881):
         self.last_call = 0.0
         self.has_handshaked = False
         self.healthy = False
@@ -28,10 +27,7 @@ class Peer(object):
         self.pieces_manager = pieces_manager
         self.port = port
         self.number_of_pieces = number_of_pieces
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
         self.bit_field = bitstring.BitArray(number_of_pieces)
         self.state = {
             'am_choking': True,

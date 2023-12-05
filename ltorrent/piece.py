@@ -4,11 +4,10 @@ import hashlib
 import math
 import time
 from ltorrent.block import Block, BLOCK_SIZE, State
-from ltorrent.log import Logger
 
 
 class Piece(object):
-    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, pieces_manager, custom_storage=None, stdout=None):
+    def __init__(self, piece_index: int, piece_size: int, piece_hash: str, pieces_manager, storage, stdout):
         self.piece_index: int = piece_index
         self.piece_size: int = piece_size
         self.piece_hash: str = piece_hash
@@ -17,12 +16,9 @@ class Piece(object):
         self.files = []
         self.number_of_blocks: int = math.ceil(piece_size / BLOCK_SIZE)
         self.blocks: list[Block] = []
-        self.custom_storage = custom_storage
+        self.storage = storage
         self.is_active = 0
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
 
         self._init_blocks()
 
@@ -41,30 +37,7 @@ class Piece(object):
 
 
     def get_block(self, block_offset, block_length):
-        if self.custom_storage:
-            return self.custom_storage.read(self.files, block_offset, block_length)
-
-        file_data_list = []
-        for file in self.files:
-            path_file = file["path"]
-            file_offset = file["fileOffset"]
-            piece_offset = file["pieceOffset"]
-            length = file["length"]
-
-            try:
-                f = open(path_file, 'rb')
-            except Exception as e:
-                self.stdout.ERROR("Can't read file %s:" % path_file, e)
-                return
-
-            f.seek(file_offset)
-            data = f.read(length)
-            file_data_list.append((piece_offset, data))
-            f.close()
-
-        file_data_list.sort(key=lambda x: x[0])
-        piece = b''.join([data for _, data in file_data_list])
-        return piece[block_offset : block_offset + block_length]
+        return self.storage.read(self.files, block_offset, block_length)
 
     def get_empty_block(self):
         if self.is_full:
@@ -93,10 +66,7 @@ class Piece(object):
             return False
 
         self.is_full = True
-        if self.custom_storage:
-            self.custom_storage.write(self.files, data)
-        else:
-            self._write_piece_on_disk(data)
+        self.storage.write(self.files, data)
         self.pieces_manager.update_bitfield(piece_index=self.piece_index)
 
         return True
@@ -118,25 +88,6 @@ class Piece(object):
     def clear(self):
         for block in self.blocks:
             block.data = b''
-
-    def _write_piece_on_disk(self, data):
-        for file in self.files:
-            path_file = file["path"]
-            file_offset = file["fileOffset"]
-            piece_offset = file["pieceOffset"]
-            length = file["length"]
-
-            try:
-                f = open(path_file, 'r+b')  # Already existing file
-            except IOError:
-                f = open(path_file, 'wb')  # New file
-            except Exception as e:
-                self.stdout.ERROR("Can't write to file:", e)
-                return
-
-            f.seek(file_offset)
-            f.write(data[piece_offset:piece_offset + length])
-            f.close()
 
     def _merge_blocks(self):
         buf = b''

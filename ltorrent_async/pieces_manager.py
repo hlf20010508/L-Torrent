@@ -3,7 +3,6 @@ __author__ = 'alexisgallepe, L-ING'
 import math
 import bitstring
 from ltorrent_async.piece import Piece
-from ltorrent_async.log import Logger
 from ltorrent_async.block import State
 
 # 8 * 1024 * 1024
@@ -13,15 +12,12 @@ class ExitSelectionException(Exception):
     pass
 
 class PiecesManager(object):
-    def __init__(self, torrent, selection, custom_storage=None, stdout=None, sequential=False):
+    def __init__(self, torrent, selection, storage, stdout, sequential=False):
         self.torrent = torrent
         self.number_of_pieces = int(torrent.number_of_pieces)
         self.bitfield = bitstring.BitArray(self.number_of_pieces)
-        self.custom_storage = custom_storage
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.storage = storage
+        self.stdout = stdout
         self.sequential = sequential
         self.pieces = self._generate_pieces()
         self.group_pieces_num = GROUP_MAX_SIZE // self.pieces[0].piece_size
@@ -141,10 +137,8 @@ class PiecesManager(object):
                 group_data += b'0' * piece.piece_size
 
             data_index += piece.piece_size
-        if self.custom_storage:
-            await self.custom_storage.write(group_file_list, group_data)
-        else:
-            await self.write_group_piece_on_disk(group_file_list, group_data)
+
+        await self.storage.write(group_file_list, group_data)
         
         for piece in self.get_group_pieces(group_index):
             piece.clear()
@@ -154,25 +148,6 @@ class PiecesManager(object):
             if piece_file['path'] == group_file['path']:
                 return True
         return False
-
-    async def write_group_piece_on_disk(self, group_file_list, group_data):
-        for file in group_file_list:
-            path_file = file["path"]
-            file_offset = file["fileOffset"]
-            piece_offset = file["pieceOffset"]
-            length = file["length"]
-
-            try:
-                f = open(path_file, 'r+b')  # Already existing file
-            except IOError:
-                f = open(path_file, 'wb')  # New file
-            except Exception as e:
-                await self.stdout.ERROR("Can't write to file:", e)
-                return
-
-            f.seek(file_offset)
-            f.write(group_data[piece_offset:piece_offset + length])
-            f.close()
 
     async def get_block(self, piece_index, block_offset, block_length):
         for piece in self.pieces:
@@ -205,7 +180,7 @@ class PiecesManager(object):
                     piece_size=self.torrent.piece_length,
                     piece_hash=self.torrent.pieces[start:end],
                     pieces_manager=self,
-                    custom_storage=self.custom_storage,
+                    storage=self.storage,
                     stdout=self.stdout
                 ))
             else:
@@ -215,7 +190,7 @@ class PiecesManager(object):
                     piece_size=piece_length,
                     piece_hash=self.torrent.pieces[start:end],
                     pieces_manager=self,
-                    custom_storage=self.custom_storage,
+                    storage=self.storage,
                     stdout=self.stdout
                 ))
 

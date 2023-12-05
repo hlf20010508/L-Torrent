@@ -7,11 +7,11 @@ A pure python torrent client based on PyTorrent
 - Support [torrent file](#torrent-file) and [magnet link](#magnet-link).
 - Scrape `udp` or `http` trackers with multiple thread.
 - Connect to peers with multiple thread.
-- Support [custom storage](#custom-storage).
+- Support [custom storage](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_storage.py).
 - Support file selection.
 - Support custom [stdout](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_stdout.py).
 - Support [running as a thread](#run-as-a-thread).
-- Support [asynchrony](https://github.com/hlf20010508/LTorrent/tree/master/examples/async.py).
+- Support [asynchrony](#asynchrony).
 - Support [sequential download](https://github.com/hlf20010508/LTorrent/tree/master/examples/sequential.py).
 
 See examples [here](https://github.com/hlf20010508/LTorrent/tree/master/examples).
@@ -31,23 +31,21 @@ Range supported, linked by `-`, eg: `4 6-10 12 14-20`.
 ### ltorrent
 pip
 ```sh
-pip install git+https://github.com/hlf20010508/LTorrent.git@1.5.0#subdirectory=ltorrent
+pip install git+https://github.com/hlf20010508/LTorrent.git@1.6.0#subdirectory=ltorrent
 ```
 pipenv
 ```sh
-# add this to Pipfile
-ltorrent = {ref = "1.5.0", git = "git+https://github.com/hlf20010508/LTorrent.git", subdirectory = "ltorrent"}
+pipenv install "ltorrent@ git+https://github.com/hlf20010508/LTorrent.git@1.6.0#subdirectory=ltorrent"
 ```
 
 ### ltorrent_async
 pip
 ```sh
-pip install git+https://github.com/hlf20010508/LTorrent.git@1.5.0#subdirectory=ltorrent_async
+pip install git+https://github.com/hlf20010508/LTorrent.git@1.6.0#subdirectory=ltorrent_async
 ```
 pipenv
 ```sh
-# add this to Pipfile
-ltorrent-async = {ref = "1.5.0", git = "git+https://github.com/hlf20010508/LTorrent.git", subdirectory = "ltorrent_async"}
+pipenv install "ltorrent_async@ git+https://github.com/hlf20010508/LTorrent.git@1.6.0#subdirectory=ltorrent_async"
 ```
 
 ## Start
@@ -93,54 +91,6 @@ client.select_file(selection=selection)
 client.run()
 ```
 
-### Custom Storage
-See full example in [examples/custom_storage.py](https://github.com/hlf20010508/LTorrent/tree/master/examples/custom_storage.py).
-```py
-from ltorrent.client import Client, CustomStorage
-
-
-class MyStorage(CustomStorage):
-    def __init__(self):
-        CustomStorage.__init__(self)
-
-    def write(self, file_piece_list, data):
-        for file_piece in file_piece_list:
-            path_file = os.path.join('downloads', file_piece["path"].split('/')[-1])
-            file_offset = file_piece["fileOffset"]
-            piece_offset = file_piece["pieceOffset"]
-            length = file_piece["length"]
-
-            ...
-
-    def read(self, files, block_offset, block_length):
-        file_data_list = []
-        for file in files:
-            path_file = file["path"]
-            file_offset = file["fileOffset"]
-            piece_offset = file["pieceOffset"]
-            length = file["length"]
-
-            ...
-        
-        return piece[block_offset : block_offset + block_length]
-
-
-magnet_link = "your-magnet-link"
-port = 8080
-custom_storage = MyStorage()
-
-client = Client(
-    port=port,
-    custom_storage=custom_storage
-)
-
-client.load(magnet_link=magnet_link)
-client.list_file()
-selection = input("Select file: ")
-client.select_file(selection=selection)
-client.run()
-```
-
 ### Run as a Thread
 ```py
 from ltorrent.client import Client
@@ -157,4 +107,26 @@ client.list_file()
 selection = input("Select file: ")
 client.select_file(selection=selection)
 client.start()
+```
+
+### Asynchrony
+```py
+from ltorrent_async.client import Client
+
+async def main():
+    magnet_link = "your-magnet-link"
+    port = 8080
+
+    client = Client(
+        port=port,
+    )
+
+    await client.load(magnet_link=magnet_link)
+    await client.list_file()
+    selection = input("Select file: ")
+    await client.select_file(selection=selection)
+    await client.run()
+
+if __name__ == '__main__':
+    asyncio.run(main())
 ```

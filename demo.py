@@ -6,7 +6,6 @@ if __name__ == '__main__':
 
     client = Client(
         port=port,
-        sequential=True
     )
 
     client.load(magnet_link=magnet_link)

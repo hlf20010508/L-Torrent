@@ -29,7 +29,6 @@ from ltorrent_async.message import (
     KeepAlive
 )
 from ltorrent_async.peer import Peer
-from ltorrent_async.log import Logger
 from ltorrent_async.async_udp import AsyncUDPClient
 import ltorrent_async._rewrite
 
@@ -54,16 +53,13 @@ class PeersPool:
 
     
 class HTTPScraper:
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, stdout, port=6881, timeout=2):
         self.torrent = torrent
         self.tracker = tracker
         self.peers_pool = peers_pool
         self.port = port
         self.timeout = timeout
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
     
     async def run(self, SEMA):
         async with SEMA:
@@ -139,16 +135,13 @@ class HTTPScraper:
 
 
 class UDPScraper:
-    def __init__(self, torrent, tracker, peers_pool, port=6881, timeout=2, stdout=None):
+    def __init__(self, torrent, tracker, peers_pool, stdout, port=6881, timeout=2):
         self.torrent = torrent
         self.tracker = tracker
         self.peers_pool = peers_pool
         self.port = port
         self.timeout = timeout
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
 
     async def run(self, SEMA):
         async with SEMA:
@@ -280,7 +273,7 @@ class UDPScraper:
 
 
 class PeersConnector:
-    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, timeout=2, stdout=None):
+    def __init__(self, torrent, sock_addr, peers_pool, peers_manager, pieces_manager, del_queue, stdout, timeout=2):
         self.torrent = torrent
         self.sock_addr = sock_addr
         self.peers_pool = peers_pool
@@ -288,10 +281,7 @@ class PeersConnector:
         self.pieces_manager = pieces_manager
         self.del_queue = del_queue
         self.timeout = timeout
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
     
     async def run(self, SEMA):
         async with SEMA:
@@ -300,9 +290,9 @@ class PeersConnector:
                     number_of_pieces=int(self.torrent.number_of_pieces),
                     peers_manager=self.peers_manager,
                     pieces_manager=self.pieces_manager,
+                    stdout=self.stdout,
                     ip=self.sock_addr.ip,
                     port=self.sock_addr.port,
-                    stdout=self.stdout
                 )
                 if not await new_peer.connect(timeout=self.timeout) or not await self.do_handshake(new_peer):
                     self.del_queue.put(new_peer.__hash__())
@@ -326,19 +316,16 @@ class PeersConnector:
 
 
 class PeersScraper:
-    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, port=6881, timeout=2, stdout=None):
+    def __init__(self, torrent, peers_pool, peers_manager, pieces_manager, stdout, port=6881, timeout=2):
         self.torrent = torrent
         self.tracker_list = self.torrent.announce_list
         self.peers_pool = peers_pool
         self.peers_manager = peers_manager
         self.pieces_manager = pieces_manager
+        self.stdout = stdout
         self.port = port
         self.timeout = timeout
         self.queue = queue.Queue()
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
     
     async def run(self):
         await self.stdout.INFO("Updating peers")
@@ -350,9 +337,9 @@ class PeersScraper:
                     torrent=self.torrent,
                     tracker=tracker,
                     peers_pool=self.peers_pool,
+                    stdout=self.stdout,
                     port=self.port,
                     timeout=self.timeout,
-                    stdout=self.stdout
                 ).run(SEMA)
                 task_list.append(scraper)
             elif str.startswith(tracker, "udp"):
@@ -360,9 +347,9 @@ class PeersScraper:
                     torrent=self.torrent,
                     tracker=tracker,
                     peers_pool=self.peers_pool,
+                    stdout=self.stdout,
                     port=self.port,
                     timeout=self.timeout,
-                    stdout=self.stdout
                 ).run(SEMA)
                 task_list.append(scraper)
             else:
@@ -381,8 +368,8 @@ class PeersScraper:
                 peers_manager=self.peers_manager,
                 pieces_manager=self.pieces_manager,
                 del_queue=self.queue,
+                stdout=self.stdout,
                 timeout=self.timeout,
-                stdout=self.stdout
             ).run(SEMA)
             task_list.append(connector)
         
@@ -399,16 +386,13 @@ class PeersScraper:
 
 
 class PeersManager:
-    def __init__(self, torrent, pieces_manager, peers_pool, stdout=None):
+    def __init__(self, torrent, pieces_manager, peers_pool, stdout):
         self.torrent = torrent
         self.pieces_manager = pieces_manager
         self.peers_pool = peers_pool
         self.pieces_by_peer = [[0, []] for _ in range(pieces_manager.number_of_pieces)]
         self.is_active = True
-        if stdout:
-            self.stdout = stdout
-        else:
-            self.stdout = Logger()
+        self.stdout = stdout
 
     async def peer_requests_piece(self, request, peer):
         if not request or not peer:
@@ -464,6 +448,7 @@ class PeersManager:
                 
                 try:
                     payload = await self._read_from_socket(peer.socket)
+                    peer.timeout_num = 0
                 except asyncio.TimeoutError:
                     peer.timeout_num += 1
                     if peer.timeout_num > 5:
